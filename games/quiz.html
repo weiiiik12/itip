@@ -12,7 +12,7 @@
             overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; 
         }
 
-        /* 標題與設定 (沿用你原本的美觀設計) */
+        /* 標題與設定 */
         .game-header { 
             background: white; padding: 10px 20px; display: flex; 
             justify-content: space-between; align-items: center; 
@@ -36,10 +36,10 @@
         .question-box {
             height: 35%; display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: white; border-radius: 20px; box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-            font-size: 60px; font-weight: 900; text-align: center; margin-bottom: 20px;
-            position: relative;
+            font-size: 50px; font-weight: 900; text-align: center; margin-bottom: 20px;
+            position: relative; padding: 10px; word-break: break-word;
         }
-        .question-box img { max-height: 80%; max-width: 90%; object-fit: contain; border-radius: 10px; }
+        .question-box img { max-height: 85%; max-width: 90%; object-fit: contain; border-radius: 10px; }
 
         /* 回饋動畫 (⭕ 與 ❌) */
         .feedback-overlay {
@@ -57,26 +57,53 @@
         }
         .option-btn {
             background: white; border: 4px solid #ccc; border-radius: 15px;
-            font-size: clamp(24px, 4vw, 40px); font-weight: bold; cursor: pointer;
+            font-size: clamp(20px, 3vw, 36px); font-weight: bold; cursor: pointer;
             box-shadow: 0 6px 0 #ccc; display: flex; justify-content: center; align-items: center;
-            transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s;
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s; text-align: center; padding: 10px;
         }
+        .option-btn img { max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; }
         .option-btn:active { transform: translateY(6px); box-shadow: 0 0 0 #ccc; }
         
         /* 答題狀態與防呆鎖定 */
-        .team-zone.locked { pointer-events: none; } /* 防狂點核心！ */
-        .option-btn.correct { background: #a5d6a7; border-color: #2e7d32; box-shadow: 0 6px 0 #2e7d32; color: #1b5e20; }
-        .option-btn.wrong { background: #ef9a9a; border-color: #c62828; box-shadow: 0 6px 0 #c62828; color: #b71c1c; animation: shake 0.3s; }
+        .team-zone.locked { pointer-events: none; } 
+        .option-btn.correct { background: #a5d6a7 !important; border-color: #2e7d32 !important; box-shadow: 0 6px 0 #2e7d32 !important; color: #1b5e20 !important; }
+        .option-btn.wrong { background: #ef9a9a !important; border-color: #c62828 !important; box-shadow: 0 6px 0 #c62828 !important; color: #b71c1c !important; animation: shake 0.3s; }
         @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-10px);} 75%{transform:translateX(10px);} }
         
-        /* 兩隊專屬按鈕顏色 */
         #red-zone .option-btn { color: #E21B3C; }
         #blue-zone .option-btn { color: #1cb0f6; }
+
+        /* 設定彈窗樣式 (仿照 matching) */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:1000; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+        .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 400px; text-align: center; }
+        select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; }
+        .start-btn { width: 100%; padding: 15px; font-size: 20px; background: #26890C; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <!-- 頂部資訊 -->
+    <!-- 1. 設定畫面 (仿照 matching 的多感官選單) -->
+    <div id="setup-screen" class="modal">
+        <div class="setup-box">
+            <h2 style="margin-top:0;">📝 選擇題對決設定 📝</h2>
+            <label style="display:block; text-align:left; font-weight:bold;">題目類型 (上方顯示)：</label>
+            <select id="q-type">
+                <option value="english">英文</option>
+                <option value="image">圖片</option>
+                <option value="chinese">中文</option>
+                <option value="audio">聲音 🔊</option>
+            </select>
+            <label style="display:block; text-align:left; font-weight:bold;">選項類型 (下方按鈕)：</label>
+            <select id="opt-type">
+                <option value="chinese">中文</option>
+                <option value="english">英文</option>
+                <option value="image">圖片</option>
+            </select>
+            <button class="start-btn" onclick="startQuiz()">開始無限對決！</button>
+        </div>
+    </div>
+
+    <!-- 頂部資訊 (無時間限制) -->
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
         <div class="score-board">
@@ -109,28 +136,28 @@
     </div>
 
 <script>
-    // 1. 抓取資料庫 (延續大廳的暫存資料)
     let rawData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
     if(rawData.length < 4) {
-        alert("題庫單字不足 4 個，無法產生四選一選項！請先補充單字。");
+        alert("本單元有效單字不足 4 個，無法產生四選一選項！");
         window.history.back();
     }
 
-    // 過濾出有效的單字
     let vocabList = rawData.filter(item => item.english && item.chinese);
     
-    // 遊戲狀態追蹤
     let state = {
-        red: { score: 0, currentAnswer: null },
-        blue: { score: 0, currentAnswer: null }
+        red: { score: 0, currentItem: null },
+        blue: { score: 0, currentItem: null }
     };
 
-    // 路徑修復工具
+    let config = {
+        qType: 'english',
+        optType: 'chinese'
+    };
+
     function fixPath(url) { 
         return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; 
     }
 
-    // 音效播放
     function playSound(type) {
         const url = type === 'correct' 
             ? 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3' 
@@ -138,31 +165,70 @@
         try { new Audio(url).play(); } catch(e) {}
     }
 
-    // 初始化兩邊的題目
-    window.onload = () => {
+    function speakWord(word) {
+        let msg = new SpeechSynthesisUtterance(word);
+        msg.lang = 'en-US'; 
+        window.speechSynthesis.speak(msg);
+    }
+
+    // 點擊開始遊戲
+    function startQuiz() {
+        config.qType = document.getElementById('q-type').value;
+        config.optType = document.getElementById('opt-type').value;
+        document.getElementById('setup-screen').style.display = 'none';
+
         loadNextQuestion('red');
         loadNextQuestion('blue');
-    };
+    }
 
-    // 核心邏輯：載入下一題並產生 4 個選項
+    // 渲染內容對應函式
+    function renderContent(item, type) {
+        if (type === 'image') {
+            return item.image_URL ? `<img src="${fixPath(item.image_URL)}">` : "無圖";
+        }
+        if (type === 'english') {
+            return item.english_image ? `<img src="${fixPath(item.english_image)}">` : item.english;
+        }
+        if (type === 'audio') {
+            return "🔊 點我聽發音";
+        }
+        return item.chinese; // chinese
+    }
+
+    // 載入下一題
     function loadNextQuestion(team) {
-        // 解除防呆鎖定
         document.getElementById(`${team}-zone`).classList.remove('locked');
         document.getElementById(`${team}-feedback`).classList.remove('show-feedback');
         
-        // 隨機抽 1 個當正確答案
         let correctItem = vocabList[Math.floor(Math.random() * vocabList.length)];
-        state[team].currentAnswer = correctItem.chinese;
+        state[team].currentItem = correctItem;
 
-        // 渲染題目 (目前預設顯示英文，如果想改成圖片可在此修改)
+        // 顯示上方題目
         let qContent = document.getElementById(`${team}-q-content`);
-        if (correctItem.image_URL) {
-            qContent.innerHTML = `<img src="${fixPath(correctItem.image_URL)}">`;
+        qContent.innerHTML = renderContent(correctItem, config.qType);
+
+        // 如果剛好選到音檔，自動唸一次
+        if (config.qType === 'audio') {
+            if (correctItem.audio_URL) {
+                try { new Audio(fixPath(correctItem.audio_URL)).play(); } catch(e) { speakWord(correctItem.english); }
+            } else {
+                speakWord(correctItem.english);
+            }
+            // 讓上方題目也能點擊再聽一次
+            qContent.style.cursor = 'pointer';
+            qContent.onclick = () => {
+                if (correctItem.audio_URL) {
+                    try { new Audio(fixPath(correctItem.audio_URL)).play(); } catch(e) { speakWord(correctItem.english); }
+                } else {
+                    speakWord(correctItem.english);
+                }
+            };
         } else {
-            qContent.innerText = correctItem.english;
+            qContent.style.cursor = 'default';
+            qContent.onclick = null;
         }
 
-        // 產生干擾選項 (確保不重複)
+        // 產生 4 個不重複選項
         let options = [correctItem];
         while (options.length < 4) {
             let randomItem = vocabList[Math.floor(Math.random() * vocabList.length)];
@@ -170,36 +236,32 @@
                 options.push(randomItem);
             }
         }
-
-        // 打亂選項順序 (Fisher-Yates Shuffle)
         options.sort(() => Math.random() - 0.5);
 
         // 渲染按鈕
         const optionsContainer = document.getElementById(`${team}-options`);
-        optionsContainer.innerHTML = ''; // 清空舊按鈕
+        optionsContainer.innerHTML = ''; 
         
         options.forEach(opt => {
             let btn = document.createElement('div');
             btn.className = 'option-btn';
-            btn.innerText = opt.chinese; // 選項顯示中文
+            btn.innerHTML = renderContent(opt, config.optType);
             
-            // 綁定點擊事件 (使用 pointerdown 提升觸控板反應速度)
-            btn.addEventListener('pointerdown', () => handleAnswer(team, btn, opt.chinese));
+            btn.addEventListener('pointerdown', () => handleAnswer(team, btn, opt));
             optionsContainer.appendChild(btn);
         });
     }
 
-    // 核心邏輯：處理學生作答
-    function handleAnswer(team, btnElement, selectedAnswer) {
-        let isCorrect = (selectedAnswer === state[team].currentAnswer);
+    // 處理作答
+    function handleAnswer(team, btnElement, selectedItem) {
+        let correctItem = state[team].currentItem;
+        let isCorrect = (selectedItem.english === correctItem.english);
         let zone = document.getElementById(`${team}-zone`);
         let feedback = document.getElementById(`${team}-feedback`);
         
-        // 🔴 絕對防禦啟動：馬上鎖定該區塊，防止學生連續狂點
         zone.classList.add('locked'); 
 
         if (isCorrect) {
-            // 答對處理
             btnElement.classList.add('correct');
             feedback.innerText = '⭕';
             feedback.style.color = '#4caf50';
@@ -208,16 +270,18 @@
             state[team].score += 1;
             document.getElementById(`score-${team}-text`).innerText = state[team].score;
         } else {
-            // 答錯處理
             btnElement.classList.add('wrong');
             feedback.innerText = '❌';
             feedback.style.color = '#f44336';
             playSound('wrong');
             
-            // 找出正確答案的按鈕，把它亮綠色提醒學生
+            // 找出正確答案按鈕並標綠
             let allBtns = document.getElementById(`${team}-options`).children;
             for(let b of allBtns) {
-                if(b.innerText === state[team].currentAnswer) {
+                // 比對內容或直接核對
+                if (config.optType === 'chinese' && b.innerText === correctItem.chinese) {
+                    b.classList.add('correct');
+                } else if (config.optType === 'english' && b.innerText === correctItem.english) {
                     b.classList.add('correct');
                 }
             }
@@ -225,7 +289,7 @@
 
         feedback.classList.add('show-feedback');
 
-        // 1.5 秒後自動洗下一題，並換下一位學生上台
+        // 無時間限制，答對/答錯後 1.5 秒自動進入下一題，給老師充裕時間批改聯絡簿
         setTimeout(() => {
             loadNextQuestion(team);
         }, 1500);
