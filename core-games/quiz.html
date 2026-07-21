@@ -3,320 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Engine - ITIP 2.0</title>
+    <title>Quiz Battle - ITIP 2.0</title>
     <style>
-        /* ================= 核心測驗引擎基礎樣式 ================= */
-        /* 這些樣式會作為基底，未來的「主題模組」可以透過覆蓋 CSS 變數來改變外觀 */
         :root {
-            --quiz-bg: #f4f7f6;
-            --quiz-text: #2c3e50;
-            --btn-bg: #ffffff;
-            --btn-hover: #e2e8f0;
-            --correct-color: #26890C;
-            --wrong-color: #E21B3C;
+            --red-team: #E21B3C;
+            --blue-team: #1cb0f6;
+            --bg-color: #f8fafc;
         }
 
-        body { 
-            margin: 0; 
-            height: 100vh; 
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background-color: var(--quiz-bg);
-            color: var(--quiz-text);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            user-select: none;
+        body {
+            margin: 0; height: 100vh; font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color); display: flex; flex-direction: column;
+            overflow: hidden; user-select: none;
         }
 
-        /* 頂部資訊列 */
-        .game-header { 
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 15px 30px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            z-index: 100;
+        /* 頂部導覽列 */
+        .game-header {
+            background: white; padding: 12px 30px; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); z-index: 100;
         }
-        .back-btn { 
-            padding: 8px 16px; 
-            border: 1px solid #ccc; 
-            border-radius: 20px; 
-            background: white; 
-            cursor: pointer; 
-            font-weight: bold; 
-            transition: 0.2s;
-        }
-        .back-btn:hover { background: #f0f0f0; }
-        
-        .status-board { display: flex; gap: 20px; font-size: 20px; font-weight: bold; }
-        .active-team-red { color: #E21B3C; }
-        .active-team-blue { color: #1cb0f6; }
+        .back-btn { padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 20px; background: white; cursor: pointer; font-weight: bold; }
 
-        /* 測驗主要區域 */
-        #quiz-container {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            z-index: 10;
+        /* 競技場主體：左右分隊對抗 */
+        .battle-arena {
+            flex-grow: 1; display: flex; position: relative; width: 100%;
         }
 
-        /* 題目區 */
-        #question-box {
-            font-size: clamp(40px, 6vw, 80px);
-            font-weight: 900;
-            margin-bottom: 40px;
-            text-align: center;
-            background: white;
-            padding: 30px 60px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            min-width: 300px;
+        /* 左右兩隊的控制區 */
+        .team-panel {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 30px; position: relative;
         }
-        .question-img { max-height: 200px; border-radius: 10px; object-fit: contain; }
+        .team-panel.red { background-color: rgba(226, 27, 60, 0.03); border-right: 4px dashed #e2e8f0; }
+        .team-panel.blue { background-color: rgba(28, 176, 246, 0.03); }
 
-        /* 四選一選項網格 */
-        #options-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            width: 100%;
-            max-width: 800px;
+        .team-name { font-size: 24px; font-weight: 900; margin-bottom: 20px; }
+        .team-panel.red .team-name { color: var(--red-team); }
+        .team-panel.blue .team-name { color: var(--blue-team); }
+
+        /* 中央題目顯示區 */
+        .question-box {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 15px 40px; border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08); text-align: center;
+            border: 2px solid #e2e8f0; max-width: 600px; width: 80%;
         }
+        .q-text { font-size: 28px; font-weight: bold; color: #1e293b; margin-bottom: 5px; }
+        .q-img { max-height: 120px; border-radius: 8px; margin-top: 10px; }
 
+        /* 語音播放按鈕 */
+        .audio-btn {
+            background: #4f46e5; color: white; border: none; padding: 8px 16px;
+            border-radius: 20px; font-weight: bold; cursor: pointer; margin-top: 8px;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .audio-btn:hover { background: #4338ca; }
+
+        /* 四選一按鈕網格 (每隊獨立操作) */
+        .options-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 400px;
+        }
         .option-btn {
-            background-color: var(--btn-bg);
-            border: 3px solid #cbd5e1;
-            border-radius: 15px;
-            padding: 25px 20px;
-            font-size: clamp(20px, 3vw, 32px);
-            font-weight: bold;
-            color: var(--quiz-text);
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 6px 0 #cbd5e1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            word-break: break-word;
+            background: white; border: 3px solid #cbd5e1; border-radius: 12px;
+            padding: 20px 10px; font-size: 20px; font-weight: bold; color: #334155;
+            cursor: pointer; box-shadow: 0 6px 0 #cbd5e1; transition: 0.1s;
         }
+        .option-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #cbd5e1; }
 
-        /* 按鈕互動與狀態 */
-        .option-btn:hover:not(:disabled) { transform: translateY(-4px); box-shadow: 0 10px 0 #cbd5e1; }
-        .option-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #cbd5e1; }
+        /* 答對/答錯視覺回饋 */
+        .option-btn.correct { background: #22c55e !important; color: white !important; border-color: #15803d !important; box-shadow: 0 2px 0 #15803d !important; }
+        .option-btn.wrong { background: #ef4444 !important; color: white !important; border-color: #b91c1c !important; box-shadow: 0 2px 0 #b91c1c !important; }
         
-        .option-btn.correct { background-color: #e8f5e9; border-color: var(--correct-color); color: var(--correct-color); box-shadow: 0 6px 0 var(--correct-color); }
-        .option-btn.wrong { background-color: #ffebee; border-color: var(--wrong-color); color: var(--wrong-color); box-shadow: 0 6px 0 var(--wrong-color); animation: shake 0.4s; }
+        .locked { pointer-events: none; opacity: 0.7; }
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
-        }
-
-        /* 鎖定盤面防止狂點 */
-        .locked { pointer-events: none; }
-
-        /* 主題背景與特效容器 (留給外層模組注入動畫使用) */
-        #theme-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
+        #theme-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
     </style>
-    <link rel="stylesheet" href="../themes/ninja/style.css">
 </head>
 <body>
 
-    <!-- 主題專屬動畫層 (由 Theme 模組控制) -->
     <div id="theme-layer"></div>
 
-    <!-- 共用頂部資訊 -->
     <div class="game-header">
         <button class="back-btn" onclick="goBack()">⭠ 返回大廳</button>
-        <div class="status-board">
-            <div>當前回合: <span id="current-turn" class="active-team-red">紅隊</span></div>
-            <div style="margin-left: 30px;">⏱️ <span id="timer">60</span>s</div>
+        <div style="font-size: 22px; font-weight: 900; color: #1e293b;">⚡ 四選一分隊對決賽 ⚡</div>
+        <div id="score-board" style="font-weight: bold; font-size: 18px;">紅隊 0 : 0 藍隊</div>
+    </div>
+
+    <!-- 中央共用題目區 -->
+    <div class="question-box">
+        <div class="q-text" id="question-text">載入題庫中...</div>
+        <div id="media-container"></div>
+    </div>
+
+    <div class="battle-arena">
+        <!-- 紅隊操作區 (左) -->
+        <div class="team-panel red" id="panel-red">
+            <div class="team-name">🔴 紅隊代表席</div>
+            <div class="options-grid" id="options-red"></div>
+        </div>
+
+        <!-- 藍隊操作區 (右) -->
+        <div class="team-panel blue" id="panel-blue">
+            <div class="team-name">🔵 藍隊代表席</div>
+            <div class="options-grid" id="options-blue"></div>
         </div>
     </div>
 
-    <!-- 測驗區域 -->
-    <div id="quiz-container">
-        <div id="question-box">載入中...</div>
-        <div id="options-grid">
-            <button class="option-btn" id="opt-0"></button>
-            <button class="option-btn" id="opt-1"></button>
-            <button class="option-btn" id="opt-2"></button>
-            <button class="option-btn" id="opt-3"></button>
-        </div>
-    </div>
-
+    <!-- 系統溝通架構 -->
     <script src="../js/progress.js"></script>
     <script src="../js/eventManager.js"></script>
-    <script src="../js/eventManager.js"></script>
+
     <script>
-        // ================= 1. 資料初始化 =================
-        let vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
-        const selectedTheme = sessionStorage.getItem('itip_theme') || 'None';
-        
-        // 確保單字量足夠出四選一，如果題庫太少，複製以防出錯
-        if (vocabData.length > 0 && vocabData.length < 4) {
-            let originalData = [...vocabData];
-            while (vocabData.length < 4) { vocabData = vocabData.concat(originalData); }
+        // 1. 取得題庫 (從 sessionStorage 抓取你從 Google Sheets 建立的資料)
+        let vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [
+            { english: "Apple", chinese: "蘋果", image: "", audio: "" },
+            { english: "Banana", chinese: "香蕉", image: "", audio: "" },
+            { english: "Cat", chinese: "貓", image: "", audio: "" },
+            { english: "Dog", chinese: "狗", image: "", audio: "" }
+        ];
+
+        let currentIndex = 0;
+
+        function initGame() {
+            loadNewQuestion();
         }
 
-        let currentTurn = 'red'; // 預設紅隊先開始 (可依主題邏輯覆蓋)
-        let isLocked = false;
-        let currentCorrectAnswer = null;
-
-        // ================= 2. 核心遊戲邏輯 =================
-
-        // 洗牌工具函數 (Fisher-Yates)
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+        // 載入題目與選項分配給紅藍兩隊
+        function loadNewQuestion() {
+            if (vocabData.length === 0) return;
+            
+            // 隨機抽一題
+            const currentItem = vocabData[Math.floor(Math.random() * vocabData.length)];
+            
+            // 顯示中央題目 (支援文字、圖片、真實 MP3 語音)
+            document.getElementById('question-text').innerText = currentItem.chinese; // 預設以中文提示
+            
+            let mediaHtml = '';
+            if (currentItem.image) {
+                mediaHtml += `<img src="${currentItem.image}" class="q-img">`;
             }
-            return array;
+            if (currentItem.audio) {
+                mediaHtml += `<br><button class="audio-btn" onclick="playAudio('${currentItem.audio}')">🔊 播放語音</button>`;
+            }
+            document.getElementById('media-container').innerHTML = mediaHtml;
+
+            // 產生 4 個選項 (1個正確，3個干擾項)
+            let options = generateOptions(currentItem);
+
+            // 紅藍兩隊「各自」渲染一組按鈕 (確保兩隊獨立作答、互不影響)
+            renderTeamOptions('red', options, currentItem.english);
+            renderTeamOptions('blue', options, currentItem.english);
+
+            // 解除鎖定
+            document.getElementById('panel-red').classList.remove('locked');
+            document.getElementById('panel-blue').classList.remove('locked');
         }
 
-        // 產生下一題
-        function loadNextQuestion() {
-            if (vocabData.length === 0) {
-                alert("找不到單字庫，請從大廳重新進入！");
-                return;
-            }
-
-            // 解除鎖定與重置按鈕狀態
-            isLocked = false;
-            document.getElementById('options-grid').classList.remove('locked');
-            
-            // 1. 抽取正確答案 (隨機抽一個)
-            const targetItem = vocabData[Math.floor(Math.random() * vocabData.length)];
-            currentCorrectAnswer = targetItem.chinese; // 預設用中文當答案，可動態調整
-            
-            // 2. 顯示題目 (預設顯示英文)
-            document.getElementById('question-box').innerText = targetItem.english;
-
-            // 3. 抽取 3 個干擾項 (錯誤答案)
-            let distractors = vocabData.filter(v => v.english !== targetItem.english);
-            distractors = shuffleArray(distractors).slice(0, 3);
-            
-            // 4. 合併選項並洗牌
-            let finalOptions = [targetItem, ...distractors];
-            
-            // 如果過濾後干擾項不足(例如題庫太少)，用補空邏輯防止報錯
-            while (finalOptions.length < 4) {
-                finalOptions.push({ chinese: "---" });
-            }
-            finalOptions = shuffleArray(finalOptions);
-
-            // 5. 渲染按鈕
-            for (let i = 0; i < 4; i++) {
-                const btn = document.getElementById(`opt-${i}`);
-                btn.innerText = finalOptions[i].chinese;
-                btn.className = "option-btn"; // 清除 correct/wrong class
-                
-                // 綁定點擊事件
-                btn.onclick = () => handleAnswerCheck(btn, finalOptions[i].chinese);
-            }
-        }
-
-        // 檢查答案與事件發送
-        function handleAnswerCheck(btnElement, selectedText) {
-            if (isLocked) return;
-            
-            // 鎖定盤面，防止學生連續狂點
-            isLocked = true;
-            document.getElementById('options-grid').classList.add('locked');
-
-            const isCorrect = (selectedText === currentCorrectAnswer);
-
-            if (isCorrect) {
-                btnElement.classList.add('correct');
-                playSound('correct');
-                
-                // 【核心架構關鍵】不直接操作特效，而是廣播事件給「主題」
-                dispatchGameEvent('CORRECT_ANSWER', currentTurn);
-                
-            } else {
-                btnElement.classList.add('wrong');
-                playSound('wrong');
-                
-                // 廣播答錯事件
-                dispatchGameEvent('WRONG_ANSWER', currentTurn);
-                
-                // 找出正確答案並高亮提示 (幫助學習)
-                for (let i = 0; i < 4; i++) {
-                    const btn = document.getElementById(`opt-${i}`);
-                    if (btn.innerText === currentCorrectAnswer) {
-                        btn.classList.add('correct');
-                    }
+        // 產生選項邏輯
+        function generateOptions(correctItem) {
+            let options = [correctItem.english];
+            while (options.length < 4) {
+                let randomItem = vocabData[Math.floor(Math.random() * vocabData.length)];
+                if (!options.includes(randomItem.english)) {
+                    options.push(randomItem.english);
                 }
             }
-
-            // 延遲後換下一題 (並切換回合)
-            setTimeout(() => {
-                switchTurn();
-                loadNextQuestion();
-            }, 1500); // 1.5秒的視覺緩衝時間
+            // 隨機打散選項位置
+            return options.sort(() => Math.random() - 0.5);
         }
 
-        // 切換回合邏輯
-        function switchTurn() {
-            currentTurn = (currentTurn === 'red') ? 'blue' : 'red';
-            const turnDisplay = document.getElementById('current-turn');
-            turnDisplay.innerText = (currentTurn === 'red') ? '紅隊' : '藍隊';
-            turnDisplay.className = `active-team-${currentTurn}`;
+        // 渲染單一隊伍的選項按鈕
+        function renderTeamOptions(team, options, correctAnswer) {
+            const grid = document.getElementById(`options-${team}`);
+            grid.innerHTML = '';
+
+            options.forEach(optText => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = optText;
+                
+                // 綁定點擊事件 (分隊獨立判定)
+                btn.addEventListener('click', () => handleAnswer(btn, optText, correctAnswer, team));
+                grid.appendChild(btn);
+            });
         }
 
-        // ================= 3. 系統通訊 (Event Emitter) =================
+        // 核心：一翻兩瞪眼判定機制
+        function handleAnswer(btn, selectedText, correctAnswer, team) {
+            const panel = document.getElementById(`panel-${team}`);
+            
+            // 如果該隊已經被鎖定，直接跳過
+            if (panel.classList.contains('locked')) return;
+
+            // 鎖定該隊，避免重複點擊
+            panel.classList.add('locked');
+
+            if (selectedText === correctAnswer) {
+                // 答對！
+                btn.classList.add('correct');
+                dispatchGameEvent('CORRECT_ANSWER', team);
+                
+                // 0.8秒後自動換下一題 (每一題自動換人接力)
+                setTimeout(() => {
+                    loadNewQuestion();
+                }, 800);
+
+            } else {
+                // 答錯！(一翻兩瞪眼：該隊此題直接失誤，交由另一隊繼續搶答或直接進入下一題)
+                btn.classList.add('wrong');
+                dispatchGameEvent('WRONG_ANSWER', team);
+
+                // 顯示正確答案提示
+                setTimeout(() => {
+                    loadNewQuestion();
+                }, 1000);
+            }
+        }
+
+        function playAudio(url) {
+            try { new Audio(url).play(); } catch(e) {}
+        }
+
         function dispatchGameEvent(eventType, team) {
             const event = new CustomEvent('ITIP_GAME_EVENT', {
-                detail: {
-                    type: eventType,   // 'CORRECT_ANSWER' 或 'WRONG_ANSWER'
-                    team: team,        // 'red' 或 'blue'
-                    coreGame: 'ChooseTheRightAnswer'
-                }
+                detail: { type: eventType, team: team, coreGame: 'QuizBattle' }
             });
             document.dispatchEvent(event);
-            console.log(`📡 發送事件: ${eventType} | 隊伍: ${team}`);
+            
+            // 同步更新畫面上的計分文字
+            if (typeof ProgressTracker !== 'undefined') {
+                document.getElementById('score-board').innerText = `紅隊 ${ProgressTracker.redScore} : ${ProgressTracker.blueScore} 藍隊`;
+            }
         }
 
-        // ================= 4. 工具與生命週期 =================
-        function playSound(type) {
-            try {
-                // 這裡使用免費公用音效，未來可整合至 audioManager.js
-                const url = type === 'correct' 
-                    ? 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3' 
-                    : 'https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3';
-                new Audio(url).play();
-            } catch (e) { console.log('音效播放忽略'); }
-        }
+        function goBack() { window.location.href = '../index.html'; }
 
-        function goBack() {
-            window.location.href = '../index.html?return=games';
-        }
-
-        function loadThemeConfig() {
-            // 這個函數預留給外層模組，用來動態載入 CSS 或執行大富翁等場景邏輯
-            console.log(`🎨 目前套用的競賽主題為：${selectedTheme}`);
-            // if (selectedTheme !== 'None') {
-            //    載入主題腳本 logic (例如 ../themes/tug-of-war/layout.js)
-            // }
-        }
-
-        // 啟動遊戲
         window.onload = () => {
-            loadThemeConfig();
-            loadNextQuestion();
+            initGame();
         };
-
     </script>
 </body>
 </html>
