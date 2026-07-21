@@ -1,1 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matching Engine - ITIP 2.0</title>
+    <style>
+        /* ================= 核心測驗引擎基礎樣式 ================= */
+        :root {
+            --bg-color: #f0f4f8;
+            --text-color: #2c3e50;
+            --card-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --correct-color: #26890C;
+            --wrong-color: #E21B3C;
+            --card-size: clamp(80px, 15vw, 150px);
+        }
 
+        body { 
+            margin: 0; 
+            height: 100vh; 
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+            touch-action: manipulation; /* 適合平板操作 */
+        }
+
+        /* 頂部資訊列 */
+        .game-header { 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 15px 30px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            z-index: 100;
+        }
+        .back-btn { 
+            padding: 8px 16px; border: 1px solid #ccc; border-radius: 20px; 
+            background: white; cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        .back-btn:hover { background: #f0f0f0; }
+        
+        .status-board { display: flex; gap: 20px; font-size: 20px; font-weight: bold; }
+        .active-team-red { color: #E21B3C; transition: 0.3s; }
+        .active-team-blue { color: #1cb0f6; transition: 0.3s; }
+
+        /* 遊戲區域 */
+        #game-arena {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        /* 卡片網格 */
+        #matching-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 固定 4 行 */
+            gap: 15px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        /* 卡片樣式 */
+        .match-card {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background-color: var(--card-bg);
+            border: 3px solid var(--border-color);
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(16px, 3vw, 24px);
+            font-weight: bold;
+            color: var(--text-color);
+            cursor: pointer;
+            box-shadow: 0 6px 0 var(--border-color);
+            transition: transform 0.1s, box-shadow 0.1s, opacity 0.3s, background-color 0.3s;
+            text-align: center;
+            padding: 10px;
+            word-break: break-word;
+        }
+
+        .match-card:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--border-color); }
+        .match-card img { max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; }
+
+        /* 互動狀態 */
+        .selected-red { border-color: #E21B3C; background: #ffebef; box-shadow: 0 6px 0 #E21B3C; transform: scale(1.05); }
+        .selected-blue { border-color: #1cb0f6; background: #ddf4ff; box-shadow: 0 6px 0 #1cb0f6; transform: scale(1.05); }
+        
+        .matched { opacity: 0; transform: scale(0.5); pointer-events: none; } /* 消失特效 */
+        .wrong { animation: shake 0.4s; background: #ffebee; border-color: var(--wrong-color); }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .locked { pointer-events: none; } /* 盤面鎖定 */
+
+        /* 主題特效層 */
+        #theme-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="theme-layer"></div>
+
+    <div class="game-header">
+        <button class="back-btn" onclick="goBack()">⭠ 返回大廳</button>
+        <div class="status-board">
+            <div>當前回合: <span id="current-turn" class="active-team-red">紅隊</span></div>
+            <div style="margin-left: 30px;">⏱️ <span id="timer">60</span>s</div>
+        </div>
+    </div>
+
+    <div id="game-arena">
+        <div id="matching-grid">
+            <!-- 卡片會由 JS 動態生成 (預設 12 張) -->
+        </div>
+    </div>
+
+    <script>
+        // ================= 1. 資料初始化 =================
+        let vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
+        const selectedTheme = sessionStorage.getItem('itip_theme') || 'None';
+        
+        // 如果單字量太少(低於6個)，直接複製陣列確保能生出 12 張牌(6對)
+        while (vocabData.length < 6) { vocabData = vocabData.concat([...vocabData]); }
+
+        let currentTurn = 'red'; 
+        let selectedCards = []; // 存放目前點擊的卡片 (最多2張)
+        let isBoardLocked = false;
+        const GRID_SIZE = 12; // 畫面上維持 12 張卡片
+
+        // ================= 2. 核心遊戲邏輯 =================
+        const grid = document.getElementById('matching-grid');
+
+        // 洗牌工具
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 開局：初始化 12 張卡片 (6對)
+        function initBoard() {
+            grid.innerHTML = '';
+            let initialPairs = shuffleArray([...vocabData]).slice(0, GRID_SIZE / 2);
+            let cardsToRender = [];
+
+            initialPairs.forEach(item => {
+                // 這裡預設是一張英文、一張中文。未來可擴充圖片判斷
+                cardsToRender.push({ id: item.english, type: 'english', text: item.english });
+                cardsToRender.push({ id: item.english, type: 'chinese', text: item.chinese });
+            });
+
+            cardsToRender = shuffleArray(cardsToRender);
+
+            cardsToRender.forEach((card, index) => {
+                grid.appendChild(createCardElement(card.id, card.text, index));
+            });
+        }
+
+        // 建立單張卡片的 DOM 元素
+        function createCardElement(pairId, content, slotIndex) {
+            const card = document.createElement('div');
+            card.className = 'match-card';
+            card.dataset.pair = pairId;   // 判斷是否配對的依據
+            card.dataset.slot = slotIndex; // 紀錄位置，方便遞補
+            card.innerHTML = content;
+            
+            card.onclick = () => handleCardClick(card);
+            return card;
+        }
+
+        // 處理點擊事件
+        function handleCardClick(card) {
+            if (isBoardLocked || card.classList.contains('matched') || selectedCards.includes(card)) return;
+
+            // 標示選中狀態 (根據當前回合塗上紅/藍色)
+            card.classList.add(`selected-${currentTurn}`);
+            selectedCards.push(card);
+
+            // 選了兩張，準備判定
+            if (selectedCards.length === 2) {
+                isBoardLocked = true;
+                checkMatch();
+            }
+        }
+
+        // 判定配對
+        function checkMatch() {
+            const card1 = selectedCards[0];
+            const card2 = selectedCards[1];
+            const isMatch = (card1.dataset.pair === card2.dataset.pair);
+
+            if (isMatch) {
+                // 答對邏輯
+                playSound('correct');
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+
+                // 廣播事件給主題模組
+                dispatchGameEvent('CORRECT_ANSWER', currentTurn);
+
+                // 延遲後遞補新卡片
+                setTimeout(() => {
+                    replenishCards(card1, card2);
+                    resetTurnState(true);
+                }, 400); 
+
+            } else {
+                // 答錯邏輯
+                playSound('wrong');
+                card1.classList.add('wrong');
+                card2.classList.add('wrong');
+                
+                dispatchGameEvent('WRONG_ANSWER', currentTurn);
+
+                setTimeout(() => {
+                    card1.classList.remove('wrong', `selected-${currentTurn}`);
+                    card2.classList.remove('wrong', `selected-${currentTurn}`);
+                    resetTurnState(false);
+                }, 500);
+            }
+        }
+
+        // 補牌機制 (生生不息的核心)
+        function replenishCards(card1, card2) {
+            // 從題庫中隨機抽一個新的單字
+            const newItem = vocabData[Math.floor(Math.random() * vocabData.length)];
+            
+            // 建立兩張新牌，並打亂順序塞回剛剛空出的 2 個位置
+            let newCards = [
+                { id: newItem.english, text: newItem.english },
+                { id: newItem.english, text: newItem.chinese }
+            ];
+            newCards = shuffleArray(newCards);
+
+            // 替換 DOM 元素
+            grid.replaceChild(createCardElement(newCards[0].id, newCards[0].text, card1.dataset.slot), card1);
+            grid.replaceChild(createCardElement(newCards[1].id, newCards[1].text, card2.dataset.slot), card2);
+        }
+
+        // 結算回合狀態
+        function resetTurnState(isSuccess) {
+            selectedCards = [];
+            isBoardLocked = false;
+            // 換隊伍回合
+            currentTurn = (currentTurn === 'red') ? 'blue' : 'red';
+            const turnDisplay = document.getElementById('current-turn');
+            turnDisplay.innerText = (currentTurn === 'red') ? '紅隊' : '藍隊';
+            turnDisplay.className = `active-team-${currentTurn}`;
+        }
+
+        // ================= 3. 系統通訊 (Event Emitter) =================
+        function dispatchGameEvent(eventType, team) {
+            const event = new CustomEvent('ITIP_GAME_EVENT', {
+                detail: { type: eventType, team: team, coreGame: 'Matching' }
+            });
+            document.dispatchEvent(event);
+            console.log(`📡 發送事件: ${eventType} | 隊伍: ${team}`);
+        }
+
+        // ================= 4. 工具 =================
+        function playSound(type) {
+            try {
+                const url = type === 'correct' 
+                    ? 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3' 
+                    : 'https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3';
+                new Audio(url).play();
+            } catch (e) {}
+        }
+
+        function goBack() { window.location.href = '../index.html?return=games'; }
+
+        // 啟動遊戲
+        window.onload = () => {
+            console.log(`🎨 目前套用的競賽主題為：${selectedTheme}`);
+            initBoard();
+        };
+
+    </script>
+</body>
+</html>
