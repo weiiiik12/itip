@@ -14,166 +14,219 @@
         body {
             margin: 0; height: 100vh; font-family: 'Segoe UI', sans-serif;
             background-color: var(--bg-color); display: flex; flex-direction: column;
-            overflow: hidden; user-select: none;
+            overflow: hidden; user-select: none; touch-action: none; /* 禁用雙擊縮放 */
         }
 
-        /* 頂部導覽列 */
+        /* 頂部導覽列與模式控制 */
         .game-header {
-            background: white; padding: 12px 30px; display: flex;
+            background: white; padding: 10px 20px; display: flex;
             justify-content: space-between; align-items: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05); z-index: 100;
         }
-        .back-btn { padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 20px; background: white; cursor: pointer; font-weight: bold; }
+        .back-btn { padding: 10px 20px; border: 1px solid #cbd5e1; border-radius: 20px; background: white; cursor: pointer; font-weight: bold; font-size: 16px; }
 
-        /* 競技場主體：左右分隊對抗 */
-        .battle-arena {
-            flex-grow: 1; display: flex; position: relative; width: 100%;
+        /* 模式切換按鈕區 */
+        .mode-controls {
+            display: flex; gap: 8px; background: #f1f5f9; padding: 6px; border-radius: 12px;
         }
-
-        /* 左右兩隊的控制區 */
-        .team-panel {
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 30px; position: relative;
+        .mode-btn {
+            padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+            background: transparent; font-weight: bold; color: #64748b; font-size: 18px;
+            transition: 0.2s;
         }
-        .team-panel.red { background-color: rgba(226, 27, 60, 0.03); border-right: 4px dashed #e2e8f0; }
-        .team-panel.blue { background-color: rgba(28, 176, 246, 0.03); }
+        .mode-btn.active { background: #3b82f6; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        .team-name { font-size: 24px; font-weight: 900; margin-bottom: 20px; }
-        .team-panel.red .team-name { color: var(--red-team); }
-        .team-panel.blue .team-name { color: var(--blue-team); }
-
-        /* 中央題目顯示區 */
-        .question-box {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: white; padding: 15px 40px; border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08); text-align: center;
-            border: 2px solid #e2e8f0; max-width: 600px; width: 80%;
+        /* 中央題目顯示區 (修正遮擋，改回標準區塊) */
+        .question-container {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 15px; min-height: 120px; background: white;
+            border-bottom: 2px solid #e2e8f0; z-index: 90;
         }
-        .q-text { font-size: 28px; font-weight: bold; color: #1e293b; margin-bottom: 5px; }
-        .q-img { max-height: 120px; border-radius: 8px; margin-top: 10px; }
+        .q-text { font-size: clamp(32px, 4vw, 56px); font-weight: 900; color: #1e293b; margin: 0; text-align: center; }
+        .q-img { max-height: 180px; border-radius: 12px; object-fit: contain; }
 
         /* 語音播放按鈕 */
         .audio-btn {
-            background: #4f46e5; color: white; border: none; padding: 8px 16px;
-            border-radius: 20px; font-weight: bold; cursor: pointer; margin-top: 8px;
-            display: inline-flex; align-items: center; gap: 5px;
+            background: #4f46e5; color: white; border: none; padding: 15px 30px;
+            border-radius: 30px; font-weight: bold; font-size: 24px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 6px 0 #3730a3;
         }
-        .audio-btn:hover { background: #4338ca; }
+        .audio-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #3730a3; }
 
-        /* 四選一按鈕網格 (每隊獨立操作) */
+        /* 競技場主體：滿屏左右分隊 */
+        .battle-arena {
+            flex-grow: 1; display: flex; width: 100%;
+        }
+
+        .team-panel {
+            flex: 1; display: flex; flex-direction: column; align-items: center; 
+            padding: 20px; position: relative;
+        }
+        .team-panel.red { background-color: rgba(226, 27, 60, 0.05); border-right: 4px dashed #cbd5e1; }
+        .team-panel.blue { background-color: rgba(28, 176, 246, 0.05); }
+
+        .team-name { font-size: clamp(24px, 3vw, 36px); font-weight: 900; margin-bottom: 15px; }
+        .team-panel.red .team-name { color: var(--red-team); }
+        .team-panel.blue .team-name { color: var(--blue-team); }
+
+        /* 滿屏超大按鈕網格 */
         .options-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 400px;
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; 
+            gap: 20px; width: 100%; max-width: 900px; flex-grow: 1; margin-bottom: 10px;
         }
         .option-btn {
-            background: white; border: 3px solid #cbd5e1; border-radius: 12px;
-            padding: 20px 10px; font-size: 20px; font-weight: bold; color: #334155;
-            cursor: pointer; box-shadow: 0 6px 0 #cbd5e1; transition: 0.1s;
+            background: white; border: 4px solid #cbd5e1; border-radius: 24px;
+            font-size: clamp(32px, 5vw, 64px); font-weight: 900; color: #334155;
+            cursor: pointer; box-shadow: 0 8px 0 #cbd5e1; transition: 0.1s;
+            display: flex; justify-content: center; align-items: center; text-align: center;
+            word-break: break-word; padding: 10px;
         }
-        .option-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #cbd5e1; }
+        .option-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 #cbd5e1; }
 
         /* 答對/答錯視覺回饋 */
-        .option-btn.correct { background: #22c55e !important; color: white !important; border-color: #15803d !important; box-shadow: 0 2px 0 #15803d !important; }
-        .option-btn.wrong { background: #ef4444 !important; color: white !important; border-color: #b91c1c !important; box-shadow: 0 2px 0 #b91c1c !important; }
+        .option-btn.correct { background: #22c55e !important; color: white !important; border-color: #15803d !important; box-shadow: 0 8px 0 #15803d !important; }
+        .option-btn.wrong { background: #ef4444 !important; color: white !important; border-color: #b91c1c !important; box-shadow: 0 8px 0 #b91c1c !important; }
         
-        .locked { pointer-events: none; opacity: 0.7; }
+        .locked { pointer-events: none; filter: grayscale(50%); opacity: 0.8; }
 
-        #theme-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        #theme-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
     </style>
 </head>
 <body>
 
     <div id="theme-layer"></div>
 
+    <!-- 頂部導覽列與模式選擇 -->
     <div class="game-header">
         <button class="back-btn" onclick="goBack()">⭠ 返回大廳</button>
-        <div style="font-size: 22px; font-weight: 900; color: #1e293b;">⚡ 四選一分隊對決賽 ⚡</div>
-        <div id="score-board" style="font-weight: bold; font-size: 18px;">紅隊 0 : 0 藍隊</div>
+        
+        <!-- ESL 多感官輸入模式切換 -->
+        <div class="mode-controls">
+            <button class="mode-btn active" id="btn-mode-chinese" onclick="setMode('chinese')">中文 ➔ 英</button>
+            <button class="mode-btn" id="btn-mode-english" onclick="setMode('english')">英文 ➔ 中</button>
+            <button class="mode-btn" id="btn-mode-image" onclick="setMode('image')">圖片 ➔ 英</button>
+            <button class="mode-btn" id="btn-mode-audio" onclick="setMode('audio')">語音 ➔ 英</button>
+        </div>
+
+        <div id="score-board" style="font-weight: bold; font-size: 22px;">紅隊 0 : 0 藍隊</div>
     </div>
 
     <!-- 中央共用題目區 -->
-    <div class="question-box">
-        <div class="q-text" id="question-text">載入題庫中...</div>
+    <div class="question-container">
+        <div class="q-text" id="question-text"></div>
         <div id="media-container"></div>
     </div>
 
+    <!-- 對戰主舞台 -->
     <div class="battle-arena">
-        <!-- 紅隊操作區 (左) -->
         <div class="team-panel red" id="panel-red">
-            <div class="team-name">🔴 紅隊代表席</div>
+            <div class="team-name">🔴 紅隊</div>
             <div class="options-grid" id="options-red"></div>
         </div>
-
-        <!-- 藍隊操作區 (右) -->
         <div class="team-panel blue" id="panel-blue">
-            <div class="team-name">🔵 藍隊代表席</div>
+            <div class="team-name">🔵 藍隊</div>
             <div class="options-grid" id="options-blue"></div>
         </div>
     </div>
 
-    <!-- 系統溝通架構 -->
     <script src="../js/progress.js"></script>
     <script src="../js/eventManager.js"></script>
 
     <script>
-        // 1. 取得題庫 (從 sessionStorage 抓取你從 Google Sheets 建立的資料)
+        // 1. 取得題庫 (模擬測試資料，請確保您的表單資料包含 image 與 audio 連結)
         let vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [
-            { english: "Apple", chinese: "蘋果", image: "", audio: "" },
-            { english: "Banana", chinese: "香蕉", image: "", audio: "" },
+            { english: "Apple", chinese: "蘋果", image: "https://cdn-icons-png.flaticon.com/512/415/415733.png", audio: "https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3" },
+            { english: "Banana", chinese: "香蕉", image: "https://cdn-icons-png.flaticon.com/512/2909/2909761.png", audio: "" },
             { english: "Cat", chinese: "貓", image: "", audio: "" },
-            { english: "Dog", chinese: "狗", image: "", audio: "" }
+            { english: "Dog", chinese: "狗", image: "", audio: "" },
+            { english: "Elephant", chinese: "大象", image: "", audio: "" }
         ];
 
-        let currentIndex = 0;
+        let currentMode = 'chinese'; // 預設模式
 
-        function initGame() {
+        function setMode(mode) {
+            currentMode = mode;
+            // 更新按鈕樣式
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-mode-' + mode).classList.add('active');
+            
             loadNewQuestion();
         }
 
-        // 載入題目與選項分配給紅藍兩隊
         function loadNewQuestion() {
             if (vocabData.length === 0) return;
             
-            // 隨機抽一題
             const currentItem = vocabData[Math.floor(Math.random() * vocabData.length)];
             
-            // 顯示中央題目 (支援文字、圖片、真實 MP3 語音)
-            document.getElementById('question-text').innerText = currentItem.chinese; // 預設以中文提示
-            
+            let qText = '';
             let mediaHtml = '';
-            if (currentItem.image) {
-                mediaHtml += `<img src="${currentItem.image}" class="q-img">`;
+            let correctAnswer = ''; 
+            let optionsTextType = 'english'; // 按鈕預設顯示英文
+
+            // 依據老師選擇的模式，設定題目與選項內容
+            switch (currentMode) {
+                case 'chinese':
+                    qText = currentItem.chinese;
+                    correctAnswer = currentItem.english;
+                    optionsTextType = 'english';
+                    break;
+                case 'english':
+                    qText = currentItem.english;
+                    correctAnswer = currentItem.chinese;
+                    optionsTextType = 'chinese';
+                    break;
+                case 'image':
+                    if (currentItem.image) {
+                        mediaHtml = `<img src="${currentItem.image}" class="q-img">`;
+                    } else {
+                        qText = `[圖片遺失] ${currentItem.chinese}`;
+                    }
+                    correctAnswer = currentItem.english;
+                    optionsTextType = 'english';
+                    break;
+                case 'audio':
+                    if (currentItem.audio) {
+                        mediaHtml = `<button class="audio-btn" onclick="playAudio('${currentItem.audio}')">🔊 播放發音</button>`;
+                        playAudio(currentItem.audio); // 自動播放一次
+                    } else {
+                        qText = `[音檔遺失] ${currentItem.chinese}`;
+                    }
+                    correctAnswer = currentItem.english;
+                    optionsTextType = 'english';
+                    break;
             }
-            if (currentItem.audio) {
-                mediaHtml += `<br><button class="audio-btn" onclick="playAudio('${currentItem.audio}')">🔊 播放語音</button>`;
-            }
+
+            // 更新畫面
+            document.getElementById('question-text').innerText = qText;
+            document.getElementById('question-text').style.display = qText ? 'block' : 'none';
             document.getElementById('media-container').innerHTML = mediaHtml;
 
-            // 產生 4 個選項 (1個正確，3個干擾項)
-            let options = generateOptions(currentItem);
+            // 產生隨機選項
+            let options = generateOptions(currentItem, optionsTextType);
 
-            // 紅藍兩隊「各自」渲染一組按鈕 (確保兩隊獨立作答、互不影響)
-            renderTeamOptions('red', options, currentItem.english);
-            renderTeamOptions('blue', options, currentItem.english);
+            // 渲染雙方按鈕
+            renderTeamOptions('red', options, correctAnswer);
+            renderTeamOptions('blue', options, correctAnswer);
 
             // 解除鎖定
             document.getElementById('panel-red').classList.remove('locked');
             document.getElementById('panel-blue').classList.remove('locked');
         }
 
-        // 產生選項邏輯
-        function generateOptions(correctItem) {
-            let options = [correctItem.english];
-            while (options.length < 4) {
+        function generateOptions(correctItem, type) {
+            let options = [correctItem[type]];
+            let attempts = 0;
+            while (options.length < 4 && attempts < 50) {
+                attempts++;
                 let randomItem = vocabData[Math.floor(Math.random() * vocabData.length)];
-                if (!options.includes(randomItem.english)) {
-                    options.push(randomItem.english);
+                let opt = randomItem[type];
+                if (opt && !options.includes(opt)) {
+                    options.push(opt);
                 }
             }
-            // 隨機打散選項位置
             return options.sort(() => Math.random() - 0.5);
         }
 
-        // 渲染單一隊伍的選項按鈕
         function renderTeamOptions(team, options, correctAnswer) {
             const grid = document.getElementById(`options-${team}`);
             grid.innerHTML = '';
@@ -183,41 +236,26 @@
                 btn.className = 'option-btn';
                 btn.innerText = optText;
                 
-                // 綁定點擊事件 (分隊獨立判定)
-                btn.addEventListener('click', () => handleAnswer(btn, optText, correctAnswer, team));
+                // 【重點防呆】使用 pointerdown 支援多點觸控，避免滑鼠單點限制
+                btn.addEventListener('pointerdown', () => handleAnswer(btn, optText, correctAnswer, team));
                 grid.appendChild(btn);
             });
         }
 
-        // 核心：一翻兩瞪眼判定機制
         function handleAnswer(btn, selectedText, correctAnswer, team) {
             const panel = document.getElementById(`panel-${team}`);
             
-            // 如果該隊已經被鎖定，直接跳過
             if (panel.classList.contains('locked')) return;
-
-            // 鎖定該隊，避免重複點擊
             panel.classList.add('locked');
 
             if (selectedText === correctAnswer) {
-                // 答對！
                 btn.classList.add('correct');
                 dispatchGameEvent('CORRECT_ANSWER', team);
-                
-                // 0.8秒後自動換下一題 (每一題自動換人接力)
-                setTimeout(() => {
-                    loadNewQuestion();
-                }, 800);
-
+                setTimeout(loadNewQuestion, 800);
             } else {
-                // 答錯！(一翻兩瞪眼：該隊此題直接失誤，交由另一隊繼續搶答或直接進入下一題)
                 btn.classList.add('wrong');
                 dispatchGameEvent('WRONG_ANSWER', team);
-
-                // 顯示正確答案提示
-                setTimeout(() => {
-                    loadNewQuestion();
-                }, 1000);
+                setTimeout(loadNewQuestion, 1200); // 答錯給予多一點時間看正確答案
             }
         }
 
@@ -231,7 +269,6 @@
             });
             document.dispatchEvent(event);
             
-            // 同步更新畫面上的計分文字
             if (typeof ProgressTracker !== 'undefined') {
                 document.getElementById('score-board').innerText = `紅隊 ${ProgressTracker.redScore} : ${ProgressTracker.blueScore} 藍隊`;
             }
@@ -240,7 +277,7 @@
         function goBack() { window.location.href = '../index.html'; }
 
         window.onload = () => {
-            initGame();
+            loadNewQuestion();
         };
     </script>
 </body>
