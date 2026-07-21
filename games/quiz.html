@@ -83,7 +83,7 @@
 </head>
 <body>
 
-    <!-- 1. 設定畫面 (選擇題目類型、選項類型、遊戲時間) -->
+    <!-- 1. 設定畫面 -->
     <div id="setup-screen" class="modal">
         <div class="setup-box">
             <h2 style="margin-top:0;">📝 選擇題對決設定 📝</h2>
@@ -107,18 +107,18 @@
                 <option value="180">180 秒 (3 分鐘)</option>
                 <option value="300">300 秒 (5 分鐘)</option>
             </select>
-            <button class="start-btn" onclick="startQuiz()">開始限時對決！</button>
+            <button class="start-btn" onclick="startQuiz()">開始同題競速對決！</button>
         </div>
     </div>
 
-    <!-- 2. 結算畫面 (時間到顯示) -->
+    <!-- 2. 結算畫面 -->
     <div id="game-over-screen" class="modal" style="display:none;">
         <h1 id="winner-text" style="font-size: 50px; margin-bottom: 10px;"></h1>
         <p id="win-reason" style="font-size: 22px; color: #555; margin-bottom: 30px;"></p>
         <button class="start-btn" style="max-width: 300px; background: #4facfe;" onclick="location.reload()">重新設定再戰</button>
     </div>
 
-    <!-- 頂部資訊 (含即時倒數計時器) -->
+    <!-- 頂部資訊 -->
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
         <div class="score-board">
@@ -160,8 +160,8 @@
     let vocabList = rawData.filter(item => item.english && item.chinese);
     
     let state = {
-        red: { score: 0, currentItem: null },
-        blue: { score: 0, currentItem: null }
+        red: { score: 0 },
+        blue: { score: 0 }
     };
 
     let config = {
@@ -172,6 +172,7 @@
 
     let timerInterval = null;
     let isGameOver = false;
+    let currentRoundItem = null; // 紀錄當前雙方共同的題目
 
     function fixPath(url) { 
         return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; 
@@ -190,7 +191,15 @@
         window.speechSynthesis.speak(msg);
     }
 
-    // 點擊開始遊戲
+    function playCurrentAudio() {
+        if (!currentRoundItem) return;
+        if (currentRoundItem.audio_URL) {
+            try { new Audio(fixPath(currentRoundItem.audio_URL)).play(); } catch(e) { speakWord(currentRoundItem.english); }
+        } else {
+            speakWord(currentRoundItem.english);
+        }
+    }
+
     function startQuiz() {
         config.qType = document.getElementById('q-type').value;
         config.optType = document.getElementById('opt-type').value;
@@ -199,7 +208,6 @@
         document.getElementById('setup-screen').style.display = 'none';
         document.getElementById('time-display').innerText = config.timeLimit;
 
-        // 啟動倒數計時器
         timerInterval = setInterval(() => {
             config.timeLimit--;
             document.getElementById('time-display').innerText = config.timeLimit;
@@ -208,16 +216,13 @@
             }
         }, 1000);
 
-        loadNextQuestion('red');
-        loadNextQuestion('blue');
+        nextRound();
     }
 
-    // 時間到結束遊戲
     function endGame() {
         isGameOver = true;
         clearInterval(timerInterval);
 
-        // 鎖定雙邊盤面
         document.getElementById('red-zone').classList.add('locked');
         document.getElementById('blue-zone').classList.add('locked');
 
@@ -252,45 +257,50 @@
         return item.chinese; 
     }
 
-    function loadNextQuestion(team) {
+    // 進入新的一輪：抽出共同題目與選項，同步派發給紅藍兩隊
+    function nextRound() {
         if (isGameOver) return;
 
-        document.getElementById(`${team}-zone`).classList.remove('locked');
-        document.getElementById(`${team}-feedback`).classList.remove('show-feedback');
+        // 解除雙方鎖定
+        document.getElementById('red-zone').classList.remove('locked');
+        document.getElementById('blue-zone').classList.remove('locked');
+        document.getElementById('red-feedback').classList.remove('show-feedback');
+        document.getElementById('blue-feedback').classList.remove('show-feedback');
         
-        let correctItem = vocabList[Math.floor(Math.random() * vocabList.length)];
-        state[team].currentItem = correctItem;
+        // 1. 系統統一抽出一題作為本回合共同題目
+        currentRoundItem = vocabList[Math.floor(Math.random() * vocabList.length)];
 
-        let qContent = document.getElementById(`${team}-q-content`);
-        qContent.innerHTML = renderContent(correctItem, config.qType);
-
-        if (config.qType === 'audio') {
-            if (correctItem.audio_URL) {
-                try { new Audio(fixPath(correctItem.audio_URL)).play(); } catch(e) { speakWord(correctItem.english); }
-            } else {
-                speakWord(correctItem.english);
-            }
-            qContent.style.cursor = 'pointer';
-            qContent.onclick = () => {
-                if (correctItem.audio_URL) {
-                    try { new Audio(fixPath(correctItem.audio_URL)).play(); } catch(e) { speakWord(correctItem.english); }
-                } else {
-                    speakWord(correctItem.english);
-                }
-            };
-        } else {
-            qContent.style.cursor = 'default';
-            qContent.onclick = null;
-        }
-
-        let options = [correctItem];
+        // 2. 產生 4 個共同選項（包含正確答案與 3 個隨機干擾項）
+        let options = [currentRoundItem];
         while (options.length < 4) {
             let randomItem = vocabList[Math.floor(Math.random() * vocabList.length)];
             if (!options.includes(randomItem)) {
                 options.push(randomItem);
             }
         }
-        options.sort(() => Math.random() - 0.5);
+        options.sort(() => Math.random() - 0.5); // 洗牌
+
+        // 3. 同步渲染紅藍雙方的畫面
+        renderTeamBoard('red', currentRoundItem, options);
+        renderTeamBoard('blue', currentRoundItem, options);
+
+        // 如果是聲音題型，統一播放一次聲音（只播一個，不會互相干擾！）
+        if (config.qType === 'audio') {
+            playCurrentAudio();
+        }
+    }
+
+    function renderTeamBoard(team, correctItem, options) {
+        let qContent = document.getElementById(`${team}-q-content`);
+        qContent.innerHTML = renderContent(correctItem, config.qType);
+
+        if (config.qType === 'audio') {
+            qContent.style.cursor = 'pointer';
+            qContent.onclick = () => playCurrentAudio();
+        } else {
+            qContent.style.cursor = 'default';
+            qContent.onclick = null;
+        }
 
         const optionsContainer = document.getElementById(`${team}-options`);
         optionsContainer.innerHTML = ''; 
@@ -300,6 +310,7 @@
             btn.className = 'option-btn';
             btn.innerHTML = renderContent(opt, config.optType);
             
+            // 綁定點擊，傳入這一格被點到的項目
             btn.addEventListener('pointerdown', () => handleAnswer(team, btn, opt));
             optionsContainer.appendChild(btn);
         });
@@ -308,11 +319,11 @@
     function handleAnswer(team, btnElement, selectedItem) {
         if (isGameOver) return;
 
-        let correctItem = state[team].currentItem;
-        let isCorrect = (selectedItem.english === correctItem.english);
+        let isCorrect = (selectedItem.english === currentRoundItem.english);
         let zone = document.getElementById(`${team}-zone`);
         let feedback = document.getElementById(`${team}-feedback`);
         
+        // 點擊後立刻鎖定該隊，防止狂點
         zone.classList.add('locked'); 
 
         if (isCorrect) {
@@ -329,11 +340,12 @@
             feedback.style.color = '#f44336';
             playSound('wrong');
             
+            // 標示出正確答案
             let allBtns = document.getElementById(`${team}-options`).children;
             for(let b of allBtns) {
-                if (config.optType === 'chinese' && b.innerText === correctItem.chinese) {
+                if (config.optType === 'chinese' && b.innerText === currentRoundItem.chinese) {
                     b.classList.add('correct');
-                } else if (config.optType === 'english' && b.innerText === correctItem.english) {
+                } else if (config.optType === 'english' && b.innerText === currentRoundItem.english) {
                     b.classList.add('correct');
                 }
             }
@@ -341,11 +353,13 @@
 
         feedback.classList.add('show-feedback');
 
+        // 💡 關鍵機制：只要「其中一隊」答對或答完，整輪結束，全場同步進入「下一題」！
+        // 這樣能維持雙方節奏一致，不會一隊已經換好幾題，另一隊還在卡著。
         setTimeout(() => {
             if (!isGameOver) {
-                loadNextQuestion(team);
+                nextRound();
             }
-        }, 1500);
+        }, 1200);
     }
 </script>
 </body>
