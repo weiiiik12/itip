@@ -184,8 +184,7 @@
     let timerInterval = null;
     let isGameOver = false;
     let currentRoundItem = null; 
-    let currentOptions = [];
-    let isAnswering = false; // 是否有人正在作答（搶答鎖定）
+    let currentTurnState = 'normal'; // 'normal' (自由搶答) | 'counter' (某隊答錯，另一隊補刀中) | 'locked' (結算等待中)
 
     function fixPath(url) { 
         return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; 
@@ -273,7 +272,7 @@
     function nextRound() {
         if (isGameOver) return;
 
-        isAnswering = false; // 解除搶答鎖定
+        currentTurnState = 'normal'; // 回歸正常自由搶答
 
         // 解除雙方盤面控制
         document.getElementById('red-zone').classList.remove('locked');
@@ -293,7 +292,6 @@
             }
         }
         options.sort(() => Math.random() - 0.5);
-        currentOptions = options;
 
         renderTeamBoard('red', currentRoundItem, options);
         renderTeamBoard('blue', currentRoundItem, options);
@@ -323,103 +321,112 @@
             btn.className = 'option-btn';
             btn.innerHTML = renderContent(opt, config.optType);
             
+            // 統一綁定點擊事件，由 handleAnswer 集中判斷
             btn.addEventListener('pointerdown', () => handleAnswer(team, btn, opt));
             optionsContainer.appendChild(btn);
         });
     }
 
-    // 搶答與補刀核心邏輯
+    // 核心統一判定：處理搶答與補刀
     function handleAnswer(team, btnElement, selectedItem) {
-        if (isGameOver || isAnswering) return; // 如果遊戲結束，或是已經有人在作答，直接忽略
+        if (isGameOver || currentTurnState === 'locked') return;
 
         let opponent = (team === 'red') ? 'blue' : 'red';
         let isCorrect = (selectedItem.english === currentRoundItem.english);
         let feedback = document.getElementById(`${team}-feedback`);
-        
-        // 標記有人開始作答，鎖定對手，防止雙方同時點擊
-        isAnswering = true;
-        document.getElementById(`${opponent}-zone`).classList.add('locked');
-        document.getElementById(`${team}-badge`).style.display = 'block';
-        document.getElementById(`${team}-badge`).innerText = "搶答中！";
 
-        if (isCorrect) {
-            // 【首發答對】
-            btnElement.classList.add('correct');
-            feedback.innerText = '⭕';
-            feedback.style.color = '#4caf50';
-            playSound('correct');
-            
-            state[team].score += 1;
-            document.getElementById(`score-${team}-text`).innerText = state[team].score;
-            feedback.classList.add('show-feedback');
+        if (currentTurnState === 'normal') {
+            // ================= 階段一：首發搶答 =================
+            if (isCorrect) {
+                // 首發答對：直接加分，進下一題
+                currentTurnState = 'locked';
+                btnElement.classList.add('correct');
+                feedback.innerText = '⭕';
+                feedback.style.color = '#4caf50';
+                playSound('correct');
+                
+                state[team].score += 1;
+                document.getElementById(`score-${team}-text`).innerText = state[team].score;
+                feedback.classList.add('show-feedback');
+                
+                // 鎖定對手
+                document.getElementById(`${opponent}-zone`).classList.add('locked');
 
-            // 1.2秒後進入下一題
-            setTimeout(() => {
-                if (!isGameOver) nextRound();
-            }, 1200);
+                setTimeout(() => {
+                    if (!isGameOver) nextRound();
+                }, 1200);
 
-        } else {
-            // 【首發答錯 ➔ 觸發補刀機制】
-            btnElement.classList.add('wrong');
-            feedback.innerText = '❌';
-            feedback.style.color = '#f44336';
-            playSound('wrong');
-            feedback.classList.add('show-feedback');
+            } else {
+                // 首發答錯：鎖定本隊，開啟對手「補刀」機會
+                currentTurnState = 'counter'; // 進入補刀狀態
+                btnElement.classList.add('wrong');
+                feedback.innerText = '❌';
+                feedback.style.color = '#f44336';
+                playSound('wrong');
+                feedback.classList.add('show-feedback');
 
-            // 原先答錯的人該按鈕保持鎖定，但把「對手」解鎖，讓對手擁有補刀機會！
-            setTimeout(() => {
-                feedback.classList.remove('show-feedback');
+                // 鎖定答錯的這一隊
+                document.getElementById(`${team}-zone`).classList.add('locked');
                 document.getElementById(`${team}-badge`).style.display = 'none';
-                
-                // 解鎖對手進行補刀
-                isAnswering = false; // 釋放搶答鎖
-                document.getElementById(`${team}-zone`).classList.add('locked'); // 答錯的人不能再動了
-                
+
+                // 讓對手區塊顯示補刀提示，並解鎖對手
                 let oppZone = document.getElementById(`${opponent}-zone`);
-                oppZone.classList.remove('locked'); // 解鎖對手
+                oppZone.classList.remove('locked');
                 
                 let oppBadge = document.getElementById(`${opponent}-badge`);
                 oppBadge.style.display = 'block';
                 oppBadge.innerText = "⚡ 補刀機會！";
 
-                // 把剛剛答錯的那顆按鈕變灰禁用
+                // 把答錯的那顆按鈕停用
                 btnElement.style.pointerEvents = 'none';
+            }
 
-                // 如果對手也答錯或超時，我們加一個保險：如果對手也選錯，直接進下一題
-                // 這裡我們直接覆蓋對手的按鈕點擊事件，改成「補刀判定」
-                setupCounterAttack(opponent, currentRoundItem);
+        } else if (currentTurnState === 'counter') {
+            // ================= 階段二：對手進行補刀 =================
+            currentTurnState = 'locked'; // 鎖定盤面準備結算
 
-            }, 800);
+            if (isCorrect) {
+                // 補刀答對：補刀隊伍加分！
+                btnElement.classList.add('correct');
+                feedback.innerText = '⭕';
+                feedback.style.color = '#4caf50';
+                playSound('correct');
+                
+                state[team].score += 1;
+                document.getElementById(`score-${team}-text`).innerText = state[team].score;
+            } else {
+                // 補刀也答錯：兩邊都沒分，秀出正確答案選項提示
+                btnElement.classList.add('wrong');
+                feedback.innerText = '❌';
+                feedback.style.color = '#f44336';
+                playSound('wrong');
+
+                // 將雙方正確答案亮綠燈提示
+                highlightCorrectAnswers();
+            }
+
+            feedback.classList.add('show-feedback');
+            document.getElementById(`${team}-badge`).style.display = 'none';
+
+            // 1.5 秒後進入下一題
+            setTimeout(() => {
+                if (!isGameOver) nextRound();
+            }, 1500);
         }
     }
 
-    // 補刀專屬判定
-    function setupCounterAttack(oppTeam, correctItem) {
-        const oppOptionsContainer = document.getElementById(`${oppTeam}-options`);
-        let buttons = oppOptionsContainer.children;
-
-        for (let btn of buttons) {
-            // 移除舊事件，換成補刀事件
-            let newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-
-            // 重新對應當前選項內容
-            let matchedOpt = currentOptions.find(o => renderContent(o, config.optType) === newBtn.innerHTML || newBtn.innerHTML.includes(o.chinese) || newBtn.innerHTML.includes(o.english));
-
-            newBtn.addEventListener('pointerdown', () => {
-                if (isGameOver) return;
-                isAnswering = true;
-                document.getElementById(`${oppTeam}-badge`).style.display = 'none';
-                let feedback = document.getElementById(`${oppTeam}-feedback`);
-
-                // 檢查補刀者是否答對
-                let isOppCorrect = (newBtn.innerHTML.includes(correctItem.chinese) || newBtn.innerHTML.includes(correctItem.english) || (matchedOpt && matchedOpt.english === correctItem.english));
-                
-                // 如果抓文字比較保險，我們直接用物件對應
-                // 為了簡單準確，我們直接在生成按鈕時綁定好資料
-                // 這裡改用下方簡化的補刀判定：
-            });
-        }
+    // 協助將雙方畫面的正確答案按鈕標綠燈
+    function highlightCorrectAnswers() {
+        ['red', 'blue'].forEach(t => {
+            let allBtns = document.getElementById(`${t}-options`).children;
+            for(let b of allBtns) {
+                if (config.optType === 'chinese' && b.innerText === currentRoundItem.chinese) {
+                    b.classList.add('correct');
+                } else if (config.optType === 'english' && b.innerText === currentRoundItem.english) {
+                    b.classList.add('correct');
+                }
+            }
+        });
     }
 </script>
 </body>
