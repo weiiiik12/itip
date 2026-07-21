@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Speed Racing Matching - ITIP 1.0</title>
+    <title>Speed Racing Matching - ITIP 2.0</title>
     <style>
         /* 全域防護 */
         body { 
@@ -50,10 +50,11 @@
             filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); display: flex; align-items: center; gap: 10px;
         }
         
-        /* 🔥 新增：單獨將車子 Emoji 水平翻轉，車頭朝右 */
+        /* 🔥 終極強制翻轉：使用 3D rotateY 確保所有系統的 Emoji 都會轉向 */
         .car-emoji {
             display: inline-block;
-            transform: scaleX(-1);
+            transform: rotateY(180deg) !important;
+            -webkit-transform: rotateY(180deg) !important;
         }
 
         .avatar span.team-name {
@@ -65,8 +66,9 @@
         .nitro-boost::after {
             content: '🔥'; position: absolute; left: -40px; font-size: 40px;
             animation: fireBlast 0.5s ease-out forwards; pointer-events: none;
+            transform: rotateY(180deg); 
         }
-        @keyframes fireBlast { 0% { transform: scale(0.5) translateX(0); opacity: 1; } 100% { transform: scale(1.5) translateX(-30px); opacity: 0; } }
+        @keyframes fireBlast { 0% { transform: scale(0.5) translateX(0) rotateY(180deg); opacity: 1; } 100% { transform: scale(1.5) translateX(30px) rotateY(180deg); opacity: 0; } }
 
         /* 遊戲操作區 */
         #play-area { flex-grow: 1; display: flex; width: 100%; background: #0f1722; }
@@ -92,7 +94,11 @@
         .error { animation: cardShake 0.3s; border-color: #ff3366 !important; background: rgba(255,51,102,0.3) !important;}
         @keyframes cardShake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
 
-        /* 浮動字體 (COMBO / SPEED UP) */
+        /* 新增：卡片置換動畫 (防止盲點) */
+        .pop-in { animation: popInAnim 0.4s ease-out; }
+        @keyframes popInAnim { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* 浮動字體 */
         .floating-text {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 50px; font-weight: 900; pointer-events: none; z-index: 10;
@@ -140,11 +146,12 @@
     <div id="game-over-screen" class="modal" style="display:none; color: white;">
         <h1 id="winner-text" style="font-size: 70px; margin-bottom: 10px; text-shadow: 0 5px 20px rgba(255,255,255,0.3);"></h1>
         <p id="win-reason" style="font-size: 24px; color: #ccc; margin-bottom: 40px;"></p>
-        <button class="start-btn" style="max-width: 300px; background: #1e90ff;" onclick="location.reload()">再戰一局</button>
+        <button class="start-btn" style="max-width: 300px; background: #1e90ff;" onclick="window.location.href='../index.html?return=games'">返回大廳</button>
+        <button class="start-btn" style="max-width: 300px; background: #2ed573; margin-top: 15px;" onclick="location.reload()">再戰一局</button>
     </div>
 
     <div class="game-header">
-        <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
+        <button class="back-btn" onclick="window.location.href='../index.html?return=games'">⭠ 返回目錄</button>
         <div style="font-size: 20px; font-weight: 900; color: #f1c40f; letter-spacing: 2px;">SPEED RELAY RACE</div>
         <div style="width: 80px;"></div>
     </div>
@@ -186,20 +193,32 @@
     if(rawData.length === 0) { alert("找不到單字，請從目錄進入！"); window.history.back(); }
     let vocabList = rawData.filter(item => item.english && item.chinese);
     
-    // 兩隊進度 (0 到 100)
     let progress = { red: 0, blue: 0 }; 
     let isGameOver = false;
     let selected = { red: null, blue: null };
     let config = { top: 'english', bot: 'chinese', target: 10 };
-    
-    // Combo 計時器紀錄
     let lastMatchTime = { red: 0, blue: 0 };
+
+    // 🔥 新增：獨立的洗牌牌庫系統 (避免單字高頻重複)
+    let vocabQueue = { red: [], blue: [] };
+
+    function getNextVocab(team) {
+        if (vocabQueue[team].length === 0) {
+            // 牌庫抽乾了，重新洗牌補充
+            vocabQueue[team] = [...vocabList].sort(() => Math.random() - 0.5);
+        }
+        return vocabQueue[team].pop();
+    }
 
     function startGame() {
         config.top = document.getElementById('top-type').value;
         config.bot = document.getElementById('bottom-type').value;
         config.target = parseInt(document.getElementById('win-target').value);
         document.getElementById('setup-screen').style.display = 'none';
+
+        // 初始化雙方牌庫
+        vocabQueue.red = [...vocabList].sort(() => Math.random() - 0.5);
+        vocabQueue.blue = [...vocabList].sort(() => Math.random() - 0.5);
 
         buildCards('red');
         buildCards('blue');
@@ -225,14 +244,40 @@
         for(let i=0; i<4; i++) spawnNewPair(team, topRow, botRow);
     }
 
+    // 🔥 新增：卡片位置對調函數 (防盲點機制)
+    function swapCardContents(card1, card2) {
+        if (card1 === card2) {
+            card1.classList.add('pop-in');
+            setTimeout(() => card1.classList.remove('pop-in'), 400);
+            return;
+        }
+        let tempHTML = card1.innerHTML;
+        let tempPair = card1.dataset.pair;
+        
+        card1.innerHTML = card2.innerHTML;
+        card1.dataset.pair = card2.dataset.pair;
+        
+        card2.innerHTML = tempHTML;
+        card2.dataset.pair = tempPair;
+
+        // 觸發重新出現的動畫
+        card1.classList.add('pop-in');
+        card2.classList.add('pop-in');
+        setTimeout(() => {
+            card1.classList.remove('pop-in');
+            card2.classList.remove('pop-in');
+        }, 400);
+    }
+
     function spawnNewPair(team, topRow, botRow, replaceTopCard = null, replaceBotCard = null) {
-        let randomItem = vocabList[Math.floor(Math.random() * vocabList.length)];
+        let randomItem = getNextVocab(team); // 改由洗牌牌庫抽取
         let pairId = randomItem.english; 
 
         let topHTML = getContent(randomItem, config.top);
         let botHTML = getContent(randomItem, config.bot);
 
         if (replaceTopCard && replaceBotCard) {
+            // 先將新單字塞入原本被清空的位子
             replaceTopCard.innerHTML = topHTML;
             replaceTopCard.dataset.pair = pairId;
             replaceTopCard.classList.remove('matched', `selected-${team}`);
@@ -240,9 +285,20 @@
             replaceBotCard.innerHTML = botHTML;
             replaceBotCard.dataset.pair = pairId;
             replaceBotCard.classList.remove('matched', `selected-${team}`);
+            
+            // 🔥 核心防作弊：與同排另一張隨機卡片對調位置
+            let topCards = Array.from(topRow.children);
+            let randomTop = topCards[Math.floor(Math.random() * topCards.length)];
+            swapCardContents(replaceTopCard, randomTop);
+
+            let botCards = Array.from(botRow.children);
+            let randomBot = botCards[Math.floor(Math.random() * botCards.length)];
+            swapCardContents(replaceBotCard, randomBot);
+
             return;
         }
 
+        // 開局生成
         let topCard = document.createElement('div');
         topCard.className = 'match-card';
         topCard.innerHTML = topHTML;
@@ -299,12 +355,12 @@
                 card2.classList.add('matched');
                 
                 let now = Date.now();
-                let isCombo = (now - lastMatchTime[team]) < 3000 && lastMatchTime[team] !== 0; // 3秒內配對算Combo
+                let isCombo = (now - lastMatchTime[team]) < 3000 && lastMatchTime[team] !== 0; 
                 lastMatchTime[team] = now;
 
                 if (isCombo) {
                     showFloatingText(team, "NITRO BOOST 🔥");
-                    moveAvatar(team, 2); // Combo 兩倍速前進
+                    moveAvatar(team, 2); 
                 } else {
                     showFloatingText(team, "SPEED UP !");
                     moveAvatar(team, 1); 
@@ -347,22 +403,19 @@
     function moveAvatar(team, multiplier) {
         if (isGameOver) return;
         
-        // 根據設定的勝利目標計算每次前進的百分比
         let step = (100 / config.target) * multiplier; 
         progress[team] += step;
         
-        if(progress[team] > 90) progress[team] = 90; // 90% 就是終點線的位置
+        if(progress[team] > 90) progress[team] = 90;
         
         let avatarEl = document.getElementById(`avatar-${team}`);
         avatarEl.style.left = `${progress[team]}%`;
 
-        // 如果是 Combo 觸發火焰特效
         if (multiplier > 1) {
             avatarEl.classList.add('nitro-boost');
             setTimeout(() => avatarEl.classList.remove('nitro-boost'), 500);
         }
 
-        // 抵達終點判定
         if (progress[team] >= 90) {
             endGame(team);
         }
