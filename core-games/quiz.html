@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Engine - ITIP 2.0</title>
+    <style>
+        /* ================= 核心測驗引擎基礎樣式 ================= */
+        /* 這些樣式會作為基底，未來的「主題模組」可以透過覆蓋 CSS 變數來改變外觀 */
+        :root {
+            --quiz-bg: #f4f7f6;
+            --quiz-text: #2c3e50;
+            --btn-bg: #ffffff;
+            --btn-hover: #e2e8f0;
+            --correct-color: #26890C;
+            --wrong-color: #E21B3C;
+        }
+
+        body { 
+            margin: 0; 
+            height: 100vh; 
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--quiz-bg);
+            color: var(--quiz-text);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 頂部資訊列 */
+        .game-header { 
+            background: rgba(255, 255, 255, 0.9); 
+            padding: 15px 30px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            z-index: 100;
+        }
+        .back-btn { 
+            padding: 8px 16px; 
+            border: 1px solid #ccc; 
+            border-radius: 20px; 
+            background: white; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: 0.2s;
+        }
+        .back-btn:hover { background: #f0f0f0; }
+        
+        .status-board { display: flex; gap: 20px; font-size: 20px; font-weight: bold; }
+        .active-team-red { color: #E21B3C; }
+        .active-team-blue { color: #1cb0f6; }
+
+        /* 測驗主要區域 */
+        #quiz-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        /* 題目區 */
+        #question-box {
+            font-size: clamp(40px, 6vw, 80px);
+            font-weight: 900;
+            margin-bottom: 40px;
+            text-align: center;
+            background: white;
+            padding: 30px 60px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            min-width: 300px;
+        }
+        .question-img { max-height: 200px; border-radius: 10px; object-fit: contain; }
+
+        /* 四選一選項網格 */
+        #options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .option-btn {
+            background-color: var(--btn-bg);
+            border: 3px solid #cbd5e1;
+            border-radius: 15px;
+            padding: 25px 20px;
+            font-size: clamp(20px, 3vw, 32px);
+            font-weight: bold;
+            color: var(--quiz-text);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 6px 0 #cbd5e1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        /* 按鈕互動與狀態 */
+        .option-btn:hover:not(:disabled) { transform: translateY(-4px); box-shadow: 0 10px 0 #cbd5e1; }
+        .option-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #cbd5e1; }
+        
+        .option-btn.correct { background-color: #e8f5e9; border-color: var(--correct-color); color: var(--correct-color); box-shadow: 0 6px 0 var(--correct-color); }
+        .option-btn.wrong { background-color: #ffebee; border-color: var(--wrong-color); color: var(--wrong-color); box-shadow: 0 6px 0 var(--wrong-color); animation: shake 0.4s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* 鎖定盤面防止狂點 */
+        .locked { pointer-events: none; }
+
+        /* 主題背景與特效容器 (留給外層模組注入動畫使用) */
+        #theme-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 主題專屬動畫層 (由 Theme 模組控制) -->
+    <div id="theme-layer"></div>
+
+    <!-- 共用頂部資訊 -->
+    <div class="game-header">
+        <button class="back-btn" onclick="goBack()">⭠ 返回大廳</button>
+        <div class="status-board">
+            <div>當前回合: <span id="current-turn" class="active-team-red">紅隊</span></div>
+            <div style="margin-left: 30px;">⏱️ <span id="timer">60</span>s</div>
+        </div>
+    </div>
+
+    <!-- 測驗區域 -->
+    <div id="quiz-container">
+        <div id="question-box">載入中...</div>
+        <div id="options-grid">
+            <button class="option-btn" id="opt-0"></button>
+            <button class="option-btn" id="opt-1"></button>
+            <button class="option-btn" id="opt-2"></button>
+            <button class="option-btn" id="opt-3"></button>
+        </div>
+    </div>
+
+    <script>
+        // ================= 1. 資料初始化 =================
+        let vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
+        const selectedTheme = sessionStorage.getItem('itip_theme') || 'None';
+        
+        // 確保單字量足夠出四選一，如果題庫太少，複製以防出錯
+        if (vocabData.length > 0 && vocabData.length < 4) {
+            let originalData = [...vocabData];
+            while (vocabData.length < 4) { vocabData = vocabData.concat(originalData); }
+        }
+
+        let currentTurn = 'red'; // 預設紅隊先開始 (可依主題邏輯覆蓋)
+        let isLocked = false;
+        let currentCorrectAnswer = null;
+
+        // ================= 2. 核心遊戲邏輯 =================
+
+        // 洗牌工具函數 (Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 產生下一題
+        function loadNextQuestion() {
+            if (vocabData.length === 0) {
+                alert("找不到單字庫，請從大廳重新進入！");
+                return;
+            }
+
+            // 解除鎖定與重置按鈕狀態
+            isLocked = false;
+            document.getElementById('options-grid').classList.remove('locked');
+            
+            // 1. 抽取正確答案 (隨機抽一個)
+            const targetItem = vocabData[Math.floor(Math.random() * vocabData.length)];
+            currentCorrectAnswer = targetItem.chinese; // 預設用中文當答案，可動態調整
+            
+            // 2. 顯示題目 (預設顯示英文)
+            document.getElementById('question-box').innerText = targetItem.english;
+
+            // 3. 抽取 3 個干擾項 (錯誤答案)
+            let distractors = vocabData.filter(v => v.english !== targetItem.english);
+            distractors = shuffleArray(distractors).slice(0, 3);
+            
+            // 4. 合併選項並洗牌
+            let finalOptions = [targetItem, ...distractors];
+            
+            // 如果過濾後干擾項不足(例如題庫太少)，用補空邏輯防止報錯
+            while (finalOptions.length < 4) {
+                finalOptions.push({ chinese: "---" });
+            }
+            finalOptions = shuffleArray(finalOptions);
+
+            // 5. 渲染按鈕
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`opt-${i}`);
+                btn.innerText = finalOptions[i].chinese;
+                btn.className = "option-btn"; // 清除 correct/wrong class
+                
+                // 綁定點擊事件
+                btn.onclick = () => handleAnswerCheck(btn, finalOptions[i].chinese);
+            }
+        }
+
+        // 檢查答案與事件發送
+        function handleAnswerCheck(btnElement, selectedText) {
+            if (isLocked) return;
+            
+            // 鎖定盤面，防止學生連續狂點
+            isLocked = true;
+            document.getElementById('options-grid').classList.add('locked');
+
+            const isCorrect = (selectedText === currentCorrectAnswer);
+
+            if (isCorrect) {
+                btnElement.classList.add('correct');
+                playSound('correct');
+                
+                // 【核心架構關鍵】不直接操作特效，而是廣播事件給「主題」
+                dispatchGameEvent('CORRECT_ANSWER', currentTurn);
+                
+            } else {
+                btnElement.classList.add('wrong');
+                playSound('wrong');
+                
+                // 廣播答錯事件
+                dispatchGameEvent('WRONG_ANSWER', currentTurn);
+                
+                // 找出正確答案並高亮提示 (幫助學習)
+                for (let i = 0; i < 4; i++) {
+                    const btn = document.getElementById(`opt-${i}`);
+                    if (btn.innerText === currentCorrectAnswer) {
+                        btn.classList.add('correct');
+                    }
+                }
+            }
+
+            // 延遲後換下一題 (並切換回合)
+            setTimeout(() => {
+                switchTurn();
+                loadNextQuestion();
+            }, 1500); // 1.5秒的視覺緩衝時間
+        }
+
+        // 切換回合邏輯
+        function switchTurn() {
+            currentTurn = (currentTurn === 'red') ? 'blue' : 'red';
+            const turnDisplay = document.getElementById('current-turn');
+            turnDisplay.innerText = (currentTurn === 'red') ? '紅隊' : '藍隊';
+            turnDisplay.className = `active-team-${currentTurn}`;
+        }
+
+        // ================= 3. 系統通訊 (Event Emitter) =================
+        function dispatchGameEvent(eventType, team) {
+            const event = new CustomEvent('ITIP_GAME_EVENT', {
+                detail: {
+                    type: eventType,   // 'CORRECT_ANSWER' 或 'WRONG_ANSWER'
+                    team: team,        // 'red' 或 'blue'
+                    coreGame: 'ChooseTheRightAnswer'
+                }
+            });
+            document.dispatchEvent(event);
+            console.log(`📡 發送事件: ${eventType} | 隊伍: ${team}`);
+        }
+
+        // ================= 4. 工具與生命週期 =================
+        function playSound(type) {
+            try {
+                // 這裡使用免費公用音效，未來可整合至 audioManager.js
+                const url = type === 'correct' 
+                    ? 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3' 
+                    : 'https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3';
+                new Audio(url).play();
+            } catch (e) { console.log('音效播放忽略'); }
+        }
+
+        function goBack() {
+            window.location.href = '../index.html?return=games';
+        }
+
+        function loadThemeConfig() {
+            // 這個函數預留給外層模組，用來動態載入 CSS 或執行大富翁等場景邏輯
+            console.log(`🎨 目前套用的競賽主題為：${selectedTheme}`);
+            // if (selectedTheme !== 'None') {
+            //    載入主題腳本 logic (例如 ../themes/tug-of-war/layout.js)
+            // }
+        }
+
+        // 啟動遊戲
+        window.onload = () => {
+            loadThemeConfig();
+            loadNextQuestion();
+        };
+
+    </script>
+</body>
+</html>
