@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Matching 競賽版</title>
+    <style>
+        body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .game-header { background: white; padding: 15px 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        #game-arena { display: flex; flex-grow: 1; padding: 10px; gap: 10px; position: relative; }
+        .team-side { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .row { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .match-item { width: 100px; height: 60px; background: white; border: 3px solid #ccc; border-radius: 10px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: bold; }
+        .matched { background: #e8f5e9; border-color: #26890C; opacity: 0.6; }
+        .error { background: #ffebee; border-color: #f44336; }
+        #svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:1000; display:flex; justify-content:center; align-items:center;">
+        <div>
+            <h2>選擇模式</h2>
+            <select id="mode-select"><option value="coop">合作模式</option><option value="vs">紅藍競賽</option></select>
+            <button onclick="startGame()" style="padding:10px 20px; background:#26890C; color:white; border:none; cursor:pointer;">開始比賽</button>
+        </div>
+    </div>
+
+    <div class="game-header">
+        <button onclick="window.history.back()">返回</button>
+        <h2>紅隊: <span id="score-red">0</span> | 藍隊: <span id="score-blue">0</span></h2>
+    </div>
+
+    <div id="game-arena">
+        <svg id="svg-layer"></svg>
+        <div class="team-side" id="side-red">
+            <div id="row-red-top" class="row"></div>
+            <div id="row-red-bottom" class="row"></div>
+        </div>
+        <div class="team-side" id="side-blue" style="display:none;">
+            <div id="row-blue-top" class="row"></div>
+            <div id="row-blue-bottom" class="row"></div>
+        </div>
+    </div>
+
+<script>
+    let rawData = JSON.parse(sessionStorage.getItem('itip_current_vocab')).sort(() => 0.5 - Math.random()).slice(0, 5);
+    let scores = { red: 0, blue: 0 };
+    let activeTeam = 'red';
+
+    function startGame() {
+        document.getElementById('setup-screen').style.display = 'none';
+        const isVS = document.getElementById('mode-select').value === 'vs';
+        if(isVS) document.getElementById('side-blue').style.display = 'flex';
+        renderBoard('red');
+        if(isVS) renderBoard('blue');
+    }
+
+    function renderBoard(team) {
+        const topRow = document.getElementById(`row-${team}-top`);
+        const botRow = document.getElementById(`row-${team}-bottom`);
+        rawData.forEach((item, i) => {
+            topRow.innerHTML += `<div class="match-item" data-id="${i}" data-team="${team}">${item.english}</div>`;
+            botRow.innerHTML += `<div class="match-item" data-id="${i}" data-team="${team}">${item.chinese}</div>`;
+        });
+        
+        document.querySelectorAll(`[data-team="${team}"]`).forEach(el => {
+            el.onclick = () => handleMatch(el, team);
+        });
+    }
+
+    let selected = { red: null, blue: null };
+
+    function handleMatch(el, team) {
+        if(el.classList.contains('matched')) return;
+        
+        if(!selected[team]) {
+            selected[team] = el;
+            el.style.borderColor = (team === 'red' ? 'red' : 'blue');
+        } else {
+            if(selected[team].dataset.id === el.dataset.id) {
+                el.classList.add('matched');
+                selected[team].classList.add('matched');
+                scores[team]++;
+                document.getElementById(`score-${team}`).innerText = scores[team];
+            } else {
+                selected[team].classList.add('error');
+                el.classList.add('error');
+                setTimeout(() => {
+                    selected[team].classList.remove('error');
+                    el.classList.remove('error');
+                }, 500);
+            }
+            selected[team].style.borderColor = '#ccc';
+            selected[team] = null;
+        }
+    }
+</script>
+</body>
+</html>

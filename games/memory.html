@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory - ITIP 2.0</title>
+    <style>
+    /* 全域設定 */
+    body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+
+    /* Header */
+    .game-header { background: white; padding: 15px 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+
+    /* 回上頁按鈕 */
+    .back-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; background-color: white; color: #555; border: 1px solid #e0e4e8; border-radius: 25px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+    .back-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); color: #4facfe; border-color: #4facfe; }
+
+    /* 遊戲區塊：加入最大寬度，強迫大螢幕時排成 5x2 (或是 4+4+2) */
+        #memory-board { 
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: center; 
+            gap: clamp(10px, 2vw, 20px); /* 間距也隨螢幕彈性調整 */
+            padding: 20px; flex-grow: 1; overflow-y: auto; 
+            max-width: 900px; /* 【關鍵】限制整個遊戲板的最大寬度 */
+            margin: 0 auto; 
+        }
+        
+    /* 終極防線：鎖定時禁止所有點擊 */
+    #memory-board.board-locked { pointer-events: none; }
+
+    /* 卡片設計：改用 clamp 自動縮放 */
+        .memory-card { 
+            width: clamp(70px, 15vw, 150px); /* 【關鍵】最小 70px，最大 150px，平常佔畫面 15% */
+            aspect-ratio: 3/4; /* 保持撲克牌的比例 */
+            height: auto; 
+            cursor: pointer; 
+            perspective: 1000px; 
+            -webkit-perspective: 1000px; 
+            position: relative; 
+        }
+    
+    .memory-inner { 
+        position: relative; 
+        width: 100%; 
+        height: 100%; 
+        transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1), opacity 0.3s ease;
+        transform-style: preserve-3d; 
+        -webkit-transform-style: preserve-3d; 
+        border-radius: 15px; 
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+    }
+    
+    .memory-card.flip .memory-inner { 
+        transform: rotateY(180deg); 
+        -webkit-transform: rotateY(180deg);
+    }
+    
+    .memory-card:not(.star-mode):hover .memory-inner { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+
+    .memory-front, .memory-back { 
+        position: absolute; 
+        top: 0; 
+        left: 0;
+        width: 100%; 
+        height: 100%; 
+        backface-visibility: hidden; 
+        -webkit-backface-visibility: hidden; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        border-radius: 15px; 
+        font-size: 28px; 
+        text-align: center;
+        box-sizing: border-box; 
+        padding: 10px; 
+        word-break: break-word;
+    }
+    
+    .memory-front { 
+        background: linear-gradient(135deg, #4facfe, #00f2fe); 
+        color: white; 
+        font-size: 40px; 
+        z-index: 2;
+        transform: rotateY(0deg) translateZ(1px); 
+        -webkit-transform: rotateY(0deg) translateZ(1px);
+    }
+    
+    .memory-back { 
+        background: white; 
+        border: 2px solid #00f2fe; 
+        color: #333; 
+        font-weight: bold; 
+        transform: rotateY(180deg) translateZ(1px); 
+        -webkit-transform: rotateY(180deg) translateZ(1px);
+    }
+    
+    .card-img { max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 8px; }
+
+    /* === 新增：配對成功的星星特效 === */
+    .memory-card.star-mode { cursor: default; }
+    .memory-card.star-mode .memory-inner {
+        opacity: 0; /* 隱藏原本的卡片 */
+        transform: scale(0.5) rotateY(180deg); /* 縮小消失的錯覺 */
+    }
+    .memory-card.star-mode::after {
+        content: '⭐';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        font-size: 80px; /* 星星大小 */
+        z-index: 10;
+        /* 星星彈出並旋轉的動畫 */
+        animation: starPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        pointer-events: none;
+    }
+    @keyframes starPop {
+        0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; }
+        100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6)); }
+    }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:1000;">
+        <div style="background:white; padding:30px; border-radius:20px; width:90%; max-width:400px; text-align:left;">
+            <h2>🎮 遊戲設定</h2>
+            <label>遊戲題數：</label>
+            <select id="num-questions" style="width:100%; padding:10px; margin-bottom:15px;"><option value="5">5 題</option><option value="10">10 題</option><option value="all">全部</option></select>
+            <label>配對模式 (勾選兩個)：</label>
+            <div id="mode-checkboxes" style="margin:10px 0; background:#f8f9fa; padding:10px;">
+                <label><input type="checkbox" value="image"> 圖片</label><br>
+                <label><input type="checkbox" value="audio"> 聲音</label><br>
+                <label><input type="checkbox" value="english"> 英文</label><br>
+                <label><input type="checkbox" value="chinese"> 中文</label>
+            </div>
+            <button onclick="applySettingsAndStart()" style="width:100%; padding:15px; background:#26890C; color:white; border:none; border-radius:10px; cursor:pointer;">開始挑戰</button>
+        </div>
+    </div>
+
+    <div class="game-header">
+        <button class="back-btn" onclick="window.history.back()">
+            <span style="font-size: 16px;">⭠</span> 回單元列表
+        </button>
+        <h2 id="game-title" style="margin:0; font-size:20px;">Memory game</h2>
+        <div style="font-size:18px; font-weight:bold;">⏱️ <span id="timer">00:00</span> | ⭐ <span id="score">0.0</span></div>
+    </div>
+
+    <div id="memory-board"></div>
+
+    <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; flex-direction:column; justify-content:center; align-items:center; z-index:2000;">
+        <h1 style="color:#26890C;">🎉 Good job！</h1>
+        <div id="final-score" style="font-size:80px; font-weight:bold; color:#333; margin:20px 0;">0.0</div>
+        <button onclick="restartGame()" style="padding:15px 40px; font-size:22px; background:#26890C; color:white; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 10px rgba(38,137,12,0.3);">🔄 再玩一次</button>
+    </div>
+
+    <script>
+        const vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab') || "[]");
+        let lastSettings = { count: 5, types: [] }, state = { hasFlipped: false, lockBoard: false, firstCard: null, secondCard: null, matched: 0 }, currentScore = 0, startTime, timerInterval;
+
+        function fixPath(url) {
+            if (!url || url.startsWith('http')) return url;
+            return (url.startsWith('../') || url.startsWith('/')) ? url : '../' + url;
+        }
+
+        function applySettingsAndStart() {
+            const checkedBoxes = document.querySelectorAll('#mode-checkboxes input:checked');
+            if (checkedBoxes.length !== 2) { alert("請勾選「剛好兩個」模式！"); return; }
+            lastSettings.types = Array.from(checkedBoxes).map(cb => cb.value);
+            lastSettings.count = document.getElementById('num-questions').value;
+            document.getElementById('setup-screen').style.display = 'none';
+            runGame(lastSettings.count, lastSettings.types);
+        }
+
+        function restartGame() {
+            document.getElementById('game-over-screen').style.display = 'none';
+            runGame(lastSettings.count, lastSettings.types);
+        }
+
+        function runGame(count, types) {
+            clearInterval(timerInterval);
+            currentScore = 0; 
+            
+            document.getElementById('memory-board').classList.remove('board-locked');
+            state = { hasFlipped: false, lockBoard: false, firstCard: null, secondCard: null, matched: 0 };
+            document.getElementById('score').innerText = "0.0";
+            
+            let gameVocab = [...vocabData];
+            if (count !== 'all') gameVocab = gameVocab.sort(() => 0.5 - Math.random()).slice(0, parseInt(count));
+            generateCards(gameVocab, types);
+            
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                let s = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('timer').innerText = String(Math.floor(s/60)).padStart(2,'0') + ":" + String(s%60).padStart(2,'0');
+            }, 1000);
+        }
+
+        function resetBoardState() {
+            state.hasFlipped = false; 
+            state.lockBoard = false; 
+            state.firstCard = null; 
+            state.secondCard = null;
+            document.getElementById('memory-board').classList.remove('board-locked');
+        }
+
+        function generateCards(data, types) {
+            const grid = document.getElementById('memory-board'); 
+            grid.innerHTML = '';
+            let cards = [];
+            
+            data.forEach((v, index) => {
+                const getC = (t) => {
+                    if (t === 'image') return v.image_URL ? `<img src="${fixPath(v.image_URL)}" class="card-img">` : "無圖";
+                    if (t === 'audio') return "🔊";
+                    if (t === 'english') return v.english_image ? `<img src="${fixPath(v.english_image)}" class="card-img">` : v.english;
+                    return v.chinese;
+                };
+                cards.push({ id: index, html: getC(types[0]), audio: (types[0] === 'audio') ? fixPath(v.audio_URL) : null });
+                cards.push({ id: index, html: getC(types[1]), audio: (types[1] === 'audio') ? fixPath(v.audio_URL) : null });
+            });
+            cards.sort(() => Math.random() - 0.5);
+            
+            cards.forEach(c => {
+                const el = document.createElement('div'); el.className = 'memory-card'; el.dataset.id = c.id;
+                el.innerHTML = `<div class="memory-inner"><div class="memory-front">?</div><div class="memory-back">${c.html}</div></div>`;
+                
+                el.onclick = () => {
+                    if (state.lockBoard || el === state.firstCard || el.classList.contains('star-mode')) return;
+                    
+                    el.classList.add('flip');
+                    
+                    // 播放卡片本身的單字音效
+                    if (c.audio) {
+                        try {
+                            let audioPlayer = new Audio(c.audio);
+                            let playPromise = audioPlayer.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch(err => console.log('單字音效略過:', err));
+                            }
+                        } catch (e) {}
+                    }
+                    
+                    if (!state.hasFlipped) { 
+                        state.hasFlipped = true; 
+                        state.firstCard = el; 
+                        return; 
+                    }
+                    
+                    state.secondCard = el;
+                    
+                    // 【強制鎖定盤面】
+                    state.lockBoard = true; 
+                    grid.classList.add('board-locked'); 
+                    
+                    // 【延遲 1.2 秒判定】讓兩張牌都打開，且畫面停頓讓孩子看清楚
+                    setTimeout(() => {
+                        if (state.firstCard.dataset.id === state.secondCard.dataset.id) {
+                            // 1. 配對成功：加上星星特效
+                            state.firstCard.classList.add('star-mode'); 
+                            state.secondCard.classList.add('star-mode');
+                            
+                            // 2. 播放成功音效 (這裡使用公開免費音效，妳可以改成自己的路徑)
+                            try {
+                                let successAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+                                successAudio.play().catch(e => console.log('過關音效略過:', e));
+                            } catch (e) {}
+                            
+                            // 3. 計分
+                            currentScore += 10 / data.length; 
+                            document.getElementById('score').innerText = (Math.round(currentScore*10)/10).toFixed(1);
+                            state.matched++;
+                            
+                            // 4. 檢查是否全破
+                            if (state.matched === data.length) { 
+                                clearInterval(timerInterval); 
+                                setTimeout(() => {
+                                    document.getElementById('game-over-screen').style.display = 'flex'; 
+                                    document.getElementById('final-score').innerText = document.getElementById('score').innerText; 
+                                }, 800); // 稍微等星星動畫跑完再跳結算畫面
+                            }
+                        } else {
+                            // 配對失敗：將兩張卡片蓋回去
+                            if (state.firstCard) state.firstCard.classList.remove('flip'); 
+                            if (state.secondCard) state.secondCard.classList.remove('flip'); 
+                        }
+                        
+                        // 判定結束，解除鎖定，準備下一次翻牌
+                        resetBoardState();
+                    }, 1200); // 等待 1200 毫秒 (1.2秒)
+                };
+                grid.appendChild(el);
+            });
+        }
+    </script>
+</body>
+</html>
