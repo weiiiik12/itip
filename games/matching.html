@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Speed Racing Matching - ITIP 2.0</title>
+    <title>Speed Racing Matching - ITIP 1.0</title>
     <style>
         /* 全域防護 */
         body { 
@@ -50,7 +50,6 @@
             filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); display: flex; align-items: center; gap: 10px;
         }
         
-        /* 🔥 終極強制翻轉：使用 3D rotateY 確保所有系統的 Emoji 都會轉向 */
         .car-emoji {
             display: inline-block;
             transform: rotateY(180deg) !important;
@@ -62,11 +61,11 @@
             border-radius: 10px; color: white;
         }
 
-        /* 氮氣加速特效 (Combo觸發) */
+        /* 氮氣加速特效 */
         .nitro-boost::after {
             content: '🔥'; position: absolute; left: -40px; font-size: 40px;
             animation: fireBlast 0.5s ease-out forwards; pointer-events: none;
-            transform: rotateY(180deg); 
+            transform: rotateY(180deg);
         }
         @keyframes fireBlast { 0% { transform: scale(0.5) translateX(0) rotateY(180deg); opacity: 1; } 100% { transform: scale(1.5) translateX(30px) rotateY(180deg); opacity: 0; } }
 
@@ -76,27 +75,26 @@
         #red-side { border-right: 4px solid #000; background: rgba(255, 71, 87, 0.05); }
         #blue-side { background: rgba(30, 144, 255, 0.05); }
         
-        /* 卡片列與卡片 */
-        .card-row { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; height: 45%; align-items: center; }
+        /* 卡片網格 (模仿 Duolingo 上下各 4 個不重複獨立方格) */
+        .card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: 45%; align-items: center; }
         .match-card { 
-            flex: 1; min-width: 90px; max-width: 150px; aspect-ratio: 2/1; 
+            width: 100%; height: 100%; min-height: 70px;
             background: #1e272e; border: 3px solid #576574; border-radius: 12px; 
             display: flex; justify-content: center; align-items: center; 
-            font-size: clamp(16px, 2.5vw, 28px); font-weight: bold; cursor: pointer; 
+            font-size: clamp(14px, 2vw, 22px); font-weight: bold; cursor: pointer; 
             box-shadow: 0 6px 15px rgba(0,0,0,0.5); transition: all 0.2s; text-align: center; padding: 5px; color: white;
+            opacity: 1; transform: scale(1);
         }
         .match-card img { max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; }
         
         /* 狀態特效 */
-        .selected-red { border-color: #ff4757 !important; background: rgba(255, 71, 87, 0.2) !important; transform: scale(1.08); box-shadow: 0 0 15px #ff4757; }
-        .selected-blue { border-color: #1e90ff !important; background: rgba(30, 144, 255, 0.2) !important; transform: scale(1.08); box-shadow: 0 0 15px #1e90ff; }
-        .matched { transform: scale(0.5); opacity: 0; pointer-events: none; }
+        .selected-red { border-color: #ff4757 !important; background: rgba(255, 71, 87, 0.3) !important; transform: scale(1.05); box-shadow: 0 0 15px #ff4757; }
+        .selected-blue { border-color: #1e90ff !important; background: rgba(30, 144, 255, 0.3) !important; transform: scale(1.05); box-shadow: 0 0 15px #1e90ff; }
+        
+        /* 消除時的淡出動畫 (類似 Duolingo 消失效果) */
+        .matched { transform: scale(0.2); opacity: 0; pointer-events: none; transition: all 0.3s ease; }
         .error { animation: cardShake 0.3s; border-color: #ff3366 !important; background: rgba(255,51,102,0.3) !important;}
         @keyframes cardShake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
-
-        /* 新增：卡片置換動畫 (防止盲點) */
-        .pop-in { animation: popInAnim 0.4s ease-out; }
-        @keyframes popInAnim { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
 
         /* 浮動字體 */
         .floating-text {
@@ -158,14 +156,12 @@
 
     <!-- 賽道區塊 -->
     <div id="track-arena">
-        <!-- 紅隊賽道 -->
         <div class="track">
             <div class="finish-line"></div>
             <div class="avatar" id="avatar-red">
                 <span class="car-emoji">🏎️</span><span class="team-name" style="color: #ff4757;">RED</span>
             </div>
         </div>
-        <!-- 藍隊賽道 -->
         <div class="track">
             <div class="finish-line"></div>
             <div class="avatar" id="avatar-blue">
@@ -174,23 +170,23 @@
         </div>
     </div>
     
-    <!-- 遊戲操作區 -->
+    <!-- 遊戲操作區：模仿 Duolingo 獨立 4+4 格不重複網格 -->
     <div id="play-area">
         <div class="team-side" id="red-side">
             <div id="red-floating" class="floating-text" style="color: #ff4757;"></div>
-            <div class="card-row" id="red-top-row"></div>
-            <div class="card-row" id="red-bot-row"></div>
+            <div class="card-grid" id="red-top-grid"></div>
+            <div class="card-grid" id="red-bot-grid"></div>
         </div>
         <div class="team-side" id="blue-side">
             <div id="blue-floating" class="floating-text" style="color: #1e90ff;"></div>
-            <div class="card-row" id="blue-top-row"></div>
-            <div class="card-row" id="blue-bot-row"></div>
+            <div class="card-grid" id="blue-top-grid"></div>
+            <div class="card-grid" id="blue-bot-grid"></div>
         </div>
     </div>
 
 <script>
     let rawData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
-    if(rawData.length === 0) { alert("找不到單字，請從目錄進入！"); window.history.back(); }
+    if(rawData.length < 4) { alert("單字數量不足 4 個，無法進行遊戲！"); window.history.back(); }
     let vocabList = rawData.filter(item => item.english && item.chinese);
     
     let progress = { red: 0, blue: 0 }; 
@@ -199,29 +195,14 @@
     let config = { top: 'english', bot: 'chinese', target: 10 };
     let lastMatchTime = { red: 0, blue: 0 };
 
-    // 🔥 新增：獨立的洗牌牌庫系統 (避免單字高頻重複)
-    let vocabQueue = { red: [], blue: [] };
-
-    function getNextVocab(team) {
-        if (vocabQueue[team].length === 0) {
-            // 牌庫抽乾了，重新洗牌補充
-            vocabQueue[team] = [...vocabList].sort(() => Math.random() - 0.5);
-        }
-        return vocabQueue[team].pop();
-    }
-
     function startGame() {
         config.top = document.getElementById('top-type').value;
         config.bot = document.getElementById('bottom-type').value;
         config.target = parseInt(document.getElementById('win-target').value);
         document.getElementById('setup-screen').style.display = 'none';
 
-        // 初始化雙方牌庫
-        vocabQueue.red = [...vocabList].sort(() => Math.random() - 0.5);
-        vocabQueue.blue = [...vocabList].sort(() => Math.random() - 0.5);
-
-        buildCards('red');
-        buildCards('blue');
+        initTeamBoard('red');
+        initTeamBoard('blue');
     }
 
     function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
@@ -237,90 +218,46 @@
         let msg = new SpeechSynthesisUtterance(word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
     }
 
-    function buildCards(team) {
-        const topRow = document.getElementById(`${team}-top-row`);
-        const botRow = document.getElementById(`${team}-bot-row`);
-        topRow.innerHTML = ''; botRow.innerHTML = '';
-        for(let i=0; i<4; i++) spawnNewPair(team, topRow, botRow);
-    }
+    // 初始化該隊的 4+4 獨立不重複卡片網格
+    function initTeamBoard(team) {
+        const topGrid = document.getElementById(`${team}-top-grid`);
+        const botGrid = document.getElementById(`${team}-bot-grid`);
+        topGrid.innerHTML = ''; 
+        botGrid.innerHTML = '';
 
-    // 🔥 新增：卡片位置對調函數 (防盲點機制)
-    function swapCardContents(card1, card2) {
-        if (card1 === card2) {
-            card1.classList.add('pop-in');
-            setTimeout(() => card1.classList.remove('pop-in'), 400);
-            return;
+        // 隨機選出 4 個完全不重複的單字
+        let chosenItems = [...vocabList].sort(() => 0.5 - Math.random()).slice(0, 4);
+
+        let topCardsData = chosenItems.map(item => ({ pairId: item.english, html: getContent(item, config.top) }));
+        let botCardsData = chosenItems.map(item => ({ pairId: item.english, html: getContent(item, config.bot) }));
+
+        // 下方選項打散順序
+        topCardsData.sort(() => 0.5 - Math.random());
+        botCardsData.sort(() => 0.5 - Math.random());
+
+        for (let i = 0; i < 4; i++) {
+            createCardElement(team, topGrid, topCardsData[i], config.top);
+            createCardElement(team, botGrid, botCardsData[i], config.bot);
         }
-        let tempHTML = card1.innerHTML;
-        let tempPair = card1.dataset.pair;
-        
-        card1.innerHTML = card2.innerHTML;
-        card1.dataset.pair = card2.dataset.pair;
-        
-        card2.innerHTML = tempHTML;
-        card2.dataset.pair = tempPair;
-
-        // 觸發重新出現的動畫
-        card1.classList.add('pop-in');
-        card2.classList.add('pop-in');
-        setTimeout(() => {
-            card1.classList.remove('pop-in');
-            card2.classList.remove('pop-in');
-        }, 400);
     }
 
-    function spawnNewPair(team, topRow, botRow, replaceTopCard = null, replaceBotCard = null) {
-        let randomItem = getNextVocab(team); // 改由洗牌牌庫抽取
-        let pairId = randomItem.english; 
+    function createCardElement(team, gridContainer, cardData, cardType) {
+        let card = document.createElement('div');
+        card.className = 'match-card';
+        card.innerHTML = cardData.html;
+        card.dataset.pair = cardData.pairId;
+        card.dataset.type = cardType;
 
-        let topHTML = getContent(randomItem, config.top);
-        let botHTML = getContent(randomItem, config.bot);
-
-        if (replaceTopCard && replaceBotCard) {
-            // 先將新單字塞入原本被清空的位子
-            replaceTopCard.innerHTML = topHTML;
-            replaceTopCard.dataset.pair = pairId;
-            replaceTopCard.classList.remove('matched', `selected-${team}`);
-            
-            replaceBotCard.innerHTML = botHTML;
-            replaceBotCard.dataset.pair = pairId;
-            replaceBotCard.classList.remove('matched', `selected-${team}`);
-            
-            // 🔥 核心防作弊：與同排另一張隨機卡片對調位置
-            let topCards = Array.from(topRow.children);
-            let randomTop = topCards[Math.floor(Math.random() * topCards.length)];
-            swapCardContents(replaceTopCard, randomTop);
-
-            let botCards = Array.from(botRow.children);
-            let randomBot = botCards[Math.floor(Math.random() * botCards.length)];
-            swapCardContents(replaceBotCard, randomBot);
-
-            return;
-        }
-
-        // 開局生成
-        let topCard = document.createElement('div');
-        topCard.className = 'match-card';
-        topCard.innerHTML = topHTML;
-        topCard.dataset.pair = pairId; 
-        
-        let botCard = document.createElement('div');
-        botCard.className = 'match-card';
-        botCard.innerHTML = botHTML;
-        botCard.dataset.pair = pairId; 
-
-        topCard.addEventListener('pointerdown', function() { handleCardTap(this, team); });
-        botCard.addEventListener('pointerdown', function() { handleCardTap(this, team); });
-
-        topRow.children.length === 0 ? topRow.appendChild(topCard) : topRow.insertBefore(topCard, topRow.children[Math.floor(Math.random() * topRow.children.length)]);
-        botRow.children.length === 0 ? botRow.appendChild(botCard) : botRow.insertBefore(botCard, botRow.children[Math.floor(Math.random() * botRow.children.length)]);
+        card.addEventListener('pointerdown', function() { handleCardTap(this, team); });
+        gridContainer.appendChild(card);
     }
 
+    // 點擊卡片與 Duolingo 式「消除後立刻補上全新不重複單字」的邏輯
     function handleCardTap(card, team) {
         if (isGameOver || card.classList.contains('matched')) return;
 
-        let cardType = card.parentElement.id.includes('top') ? config.top : config.bot;
-        if (cardType === 'audio') {
+        // 如果點到聲音，直接發音
+        if (card.dataset.type === 'audio') {
             let item = vocabList.find(x => x.english === card.dataset.pair);
             if (item && item.audio_URL) {
                 playSound(fixPath(item.audio_URL));
@@ -342,7 +279,10 @@
             let card1 = selected[team];
             let card2 = card;
             
-            if(card1.parentElement.id === card2.parentElement.id) {
+            // 不能選同一排的卡片
+            let grid1 = card1.parentElement.id;
+            let grid2 = card2.parentElement.id;
+            if (grid1 === grid2) {
                 card1.classList.remove(`selected-${team}`);
                 selected[team] = card2;
                 card2.classList.add(`selected-${team}`);
@@ -350,17 +290,17 @@
             }
 
             if (card1.dataset.pair === card2.dataset.pair) {
-                // 【配對成功】
+                // 【配對成功】：消除動畫
                 card1.classList.add('matched');
                 card2.classList.add('matched');
                 
                 let now = Date.now();
-                let isCombo = (now - lastMatchTime[team]) < 3000 && lastMatchTime[team] !== 0; 
+                let isCombo = (now - lastMatchTime[team]) < 3000 && lastMatchTime[team] !== 0;
                 lastMatchTime[team] = now;
 
                 if (isCombo) {
                     showFloatingText(team, "NITRO BOOST 🔥");
-                    moveAvatar(team, 2); 
+                    moveAvatar(team, 2);
                 } else {
                     showFloatingText(team, "SPEED UP !");
                     moveAvatar(team, 1); 
@@ -368,11 +308,11 @@
 
                 playSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
 
+                // 模仿 Duolingo：0.3秒後直接將這兩張卡片變身為「全新、畫面上沒有重複」的新單字！
                 setTimeout(() => {
-                    let topR = document.getElementById(`${team}-top-row`);
-                    let botR = document.getElementById(`${team}-bot-row`);
-                    spawnNewPair(team, topR, botR, card1.parentElement.id.includes('top') ? card1 : card2, card1.parentElement.id.includes('bot') ? card1 : card2);
-                }, 400);
+                    replaceWithNewUniqueCard(team, card1);
+                    replaceWithNewUniqueCard(team, card2);
+                }, 300);
 
             } else {
                 // 【配對失敗】
@@ -385,10 +325,35 @@
                 setTimeout(() => {
                     card1.classList.remove('error', `selected-${team}`);
                     card2.classList.remove('error', `selected-${team}`);
-                }, 400);
+                }, 300);
             }
             selected[team] = null;
         }
+    }
+
+    // 確保補上來的單字，絕對不會和「目前畫面上其他還沒消掉的單字」重複
+    function replaceWithNewUniqueCard(team, cardEl) {
+        let gridId = cardEl.parentElement.id;
+        let cardType = cardEl.dataset.type;
+
+        // 收集目前畫面上所有已經存在的單字 pairId，避免重複
+        let currentOnScreen = Array.from(document.querySelectorAll(`#${team}-side .match-card`))
+            .map(c => c.dataset.pair);
+
+        // 過濾出還沒出現在畫面上的候選單字
+        let availableItems = vocabList.filter(item => !currentOnScreen.includes(item.english));
+        
+        // 如果題庫太小導致全部都上過一輪了，就從全部單字裡面隨機挑一個
+        if (availableItems.length === 0) {
+            availableItems = vocabList;
+        }
+
+        let newItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+
+        // 更新這張卡的內容與屬性
+        cardEl.dataset.pair = newItem.english;
+        cardEl.innerHTML = getContent(newItem, cardType);
+        cardEl.classList.remove('matched', `selected-${team}`);
     }
 
     function showFloatingText(team, text) {
@@ -399,14 +364,13 @@
         el.classList.add('float-anim');
     }
 
-    // 移動賽車
     function moveAvatar(team, multiplier) {
         if (isGameOver) return;
         
         let step = (100 / config.target) * multiplier; 
         progress[team] += step;
         
-        if(progress[team] > 90) progress[team] = 90;
+        if(progress[team] > 90) progress[team] = 90; 
         
         let avatarEl = document.getElementById(`avatar-${team}`);
         avatarEl.style.left = `${progress[team]}%`;
@@ -423,18 +387,9 @@
 
     function endGame(winningTeam) {
         isGameOver = true;
-        
-        let winnerStr = "";
-        let reasonStr = "率先衝過終點線，贏得比賽！";
-
-        if (winningTeam === 'red') {
-            winnerStr = "<span style='color:#ff4757;'>RED TEAM 獲勝！🏎️💨</span>";
-        } else {
-            winnerStr = "<span style='color:#1e90ff;'>BLUE TEAM 獲勝！🚙💨</span>";
-        } 
-
+        let winnerStr = (winningTeam === 'red') ? "<span style='color:#ff4757;'>RED TEAM 獲勝！🏎️💨</span>" : "<span style='color:#1e90ff;'>BLUE TEAM 獲勝！🚙💨</span>";
         document.getElementById('winner-text').innerHTML = winnerStr;
-        document.getElementById('win-reason').innerText = reasonStr;
+        document.getElementById('win-reason').innerText = "率先衝過終點線，贏得比賽！";
         document.getElementById('game-over-screen').style.display = 'flex';
     }
 
