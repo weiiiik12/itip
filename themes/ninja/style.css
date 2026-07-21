@@ -1,0 +1,74 @@
+/* ================= Ninja 主題特效層 ================= */
+#ninja-theme-wrapper {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* 絕對不能擋住底層遊戲的點擊！ */
+    z-index: 999;
+    overflow: hidden;
+}
+
+/* 隊伍專屬的爆破區域 (左紅右藍) */
+.ninja-zone {
+    position: absolute;
+    bottom: 50px;
+    width: 200px;
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.ninja-zone.red { left: 5%; }
+.ninja-zone.blue { right: 5%; }
+
+/* 生成的目標物件 (氣球/水果) */
+.ninja-target {
+    font-size: 80px;
+    position: absolute;
+    transition: 0.1s;
+    filter: drop-shadow(0 10px 10px rgba(0,0,0,0.3));
+}
+
+/* ★ 答對的切開/爆破動畫 ★ */
+.ninja-target.slice-anim {
+    animation: slicePop 0.5s ease-out forwards;
+}
+
+@keyframes slicePop {
+    0% { transform: scale(0.5) translateY(50px); opacity: 0; }
+    30% { transform: scale(1.2) translateY(-20px); opacity: 1; filter: brightness(1.5); }
+    50% { transform: scale(1.5) rotate(15deg); opacity: 0.8; }
+    100% { transform: scale(2) rotate(45deg); opacity: 0; filter: blur(4px); }
+}
+
+/* 答錯的震動與失誤特效 */
+.ninja-target.miss-anim {
+    animation: missDrop 0.5s ease-in forwards;
+    filter: grayscale(100%);
+}
+
+@keyframes missDrop {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(100px); opacity: 0; }
+}
+
+/* 進度條 (兩側直立式) */
+.ninja-progress-bar {
+    position: absolute;
+    bottom: 50px;
+    width: 20px;
+    height: 300px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 10px;
+    border: 3px solid #333;
+    overflow: hidden;
+}
+.ninja-progress-bar.red { left: 2%; }
+.ninja-progress-bar.blue { right: 2%; }
+
+.progress-fill {
+    position: absolute;
+    bottom: 0; width: 100%; height: 0%;
+    transition: height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.progress-fill.red { background: linear-gradient(to top, #E21B3C, #ff6b81); }
+.progress-fill.blue { background: linear-gradient(to top, #1368CE, #70a1ff); }
