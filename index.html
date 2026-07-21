@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITIP 2.0</title>
+    <style>
+        /* ================= 核心大廳樣式設定 ================= */  
+        :root {
+            --bg-color: #f4f7f6; 
+            --text-color: #2c3e50; 
+            --primary-color: #ff3366; 
+            --card-bg: #ffffff; 
+            --border-color: #e2e8f0; 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 0 40px 0; border-bottom: 2px dashed var(--border-color); margin-bottom: 30px;
+        }
+        header h1 {
+            font-size: 28px; font-weight: 800;
+            background: linear-gradient(45deg, #ff3366, #ff9933);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        #breadcrumb { font-size: 18px; color: #7f8c8d; margin-bottom: 20px; font-weight: 500; }
+
+        .view-section { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 25px; }
+        .book-card {
+            background-color: var(--card-bg); border-radius: 12px; overflow: hidden; cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .book-card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
+        .book-cover { height: 280px; background-color: #ecf0f1; background-size: cover; background-position: center; border-bottom: 1px solid var(--border-color); }
+        .book-info { padding: 15px; }
+        .book-info h3 { margin-bottom: 5px; color: var(--text-color); }
+        .book-info p { color: #7f8c8d; font-size: 14px; font-weight: bold; }
+        .star-rating { color: #f1c40f; }
+
+        .unit-card {
+            background-color: var(--card-bg); padding: 20px; border-radius: 10px; cursor: pointer;
+            border-left: 6px solid var(--primary-color); box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s;
+        }
+        .unit-card:hover { background-color: #fff9fa; transform: translateX(8px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+
+        .vocab-preview-box { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 1px solid var(--border-color); }
+        .vocab-chip { display: inline-block; background: #f1f2f6; color: #2f3640; padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: bold; border: 1px solid #dfe4ea; margin: 5px; }
+
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; }
+        .game-btn {
+            padding: 30px 20px; border-radius: 15px; font-size: 20px; font-weight: bold; text-align: center;
+            cursor: pointer; color: white; transition: transform 0.1s; border: none;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2); 
+        }
+        .game-btn:hover { transform: translateY(-4px); box-shadow: 0 10px 0 rgba(0,0,0,0.2); }
+        .game-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+        .bg-blue { background-color: #1368CE; } .bg-red { background-color: #E21B3C; } .bg-green { background-color: #26890C; } .bg-yellow { background-color: #FFA602; color: #333; } .bg-purple { background-color: #9b59b6; color: white;}
+
+        .back-btn { background-color: #ffffff; color: #34495e; border: 1px solid #bdc3c7; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-right: 15px; font-weight: bold; transition: 0.2s;}
+        .back-btn:hover { background-color: #ecf0f1; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📚 ITIP 2.0</h1>
+    </header>
+
+    <div id="breadcrumb"></div>
+
+    <!-- 視圖 1: 選擇教材 -->
+    <div id="view-books" class="view-section active">
+        <h2 style="margin-bottom: 20px;">選擇教材</h2>
+        <div class="grid-container" id="books-container"></div>
+    </div>
+
+    <!-- 視圖 2: 選擇單元 -->
+    <div id="view-units" class="view-section">
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <button class="back-btn" onclick="showBooks()">← 返回教材</button>
+            <h2 id="unit-title"></h2>
+        </div>
+        <div class="grid-container" id="units-container"></div>
+    </div>
+
+    <!-- 視圖 3: 選擇玩法 -->
+    <div id="view-games" class="view-section">
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <button class="back-btn" onclick="showUnits(currentBookId, currentBookTitle)">← 返回單元</button>
+            <h2 id="game-title"></h2>
+        </div>
+        
+        <div class="vocab-preview-box">
+            <h3 style="color: #7f8c8d; font-size: 16px; margin-bottom: 15px;">預覽本課單字：</h3>
+            <div id="vocab-preview" style="display: flex; gap: 5px; flex-wrap: wrap;"></div>
+        </div>
+
+        <h3 style="margin-bottom: 20px; color: var(--text-color);">請選擇玩法</h3>
+        <div class="game-grid">
+            <div class="game-btn bg-blue" onclick="startGame('Memory')">🃏 Memory<br><small style="font-size:13px; font-weight:normal;">翻牌配對</small></div>
+            <div class="game-btn bg-red" onclick="startGame('Quiz')">📝 Quiz<br><small style="font-size:13px; font-weight:normal;">選擇測驗</small></div>
+            <div class="game-btn bg-green" onclick="startGame('Maze')">🌀 Maze<br><small style="font-size:13px; font-weight:normal;">迷宮挑戰</small></div>
+            <div class="game-btn bg-yellow" onclick="startGame('Wheel')">🎡 Wheel<br><small style="font-size:13px; font-weight:normal;">幸運轉盤</small></div>
+            <div class="game-btn bg-purple" onclick="startGame('Matching')">🔗 Matching<br><small style="font-size:13px; font-weight:normal;">連連看</small></div>
+            <div class="game-btn" style="background-color: #2c3e50; color: white;" onclick="startGame('Ninja')">🥷Ninja<br><small style="font-size:13px; font-weight:normal;">字首氣球</small></div>
+            <div class="game-btn" style="background-color: #e91e63;" onclick="startGame('Train')">🚂 Train<br><small>字母火車</small></div>
+        </div>
+    </div>
+
+    <script>
+        let mockData = { books: [], units: [], vocab: [] };
+        let currentBookId = "", currentBookTitle = "", currentUnitId = "", currentUnitTitle = "";
+
+        // ================= 介面導覽邏輯 =================//
+        function renderBooks() {
+            const container = document.getElementById('books-container');
+            container.innerHTML = ""; 
+            mockData.books.forEach(book => {
+                const bgImage = book.cover_image ? `url('${book.cover_image}')` : 'none';
+                container.innerHTML += `
+                    <div class="book-card" onclick="showUnits('${book.book_ID}', '${book.title}')">
+                        <div class="book-cover" style="background-image: ${bgImage}"></div>
+                        <div class="book-info"><h3>${book.title}</h3><p><span class="star-rating">★★★★★</span></p></div>
+                    </div>`;
+            });
+            updateBreadcrumb();
+        }
+
+        function showUnits(bookId, bookTitle) {
+            currentBookId = bookId; currentBookTitle = bookTitle;
+            switchView('view-units');
+            document.getElementById('unit-title').innerText = `${bookTitle} - 單元列表`;
+            updateBreadcrumb(`首頁 > ${bookTitle}`);
+            
+            const container = document.getElementById('units-container');
+            container.innerHTML = "";
+            const bookUnits = mockData.units.filter(u => String(u.book_ID).trim() === String(bookId).trim());
+
+            if(bookUnits.length === 0) { container.innerHTML = "<p style='color:#7f8c8d;'>此教材尚未建立單元。</p>"; return; }
+            bookUnits.forEach(unit => {
+                container.innerHTML += `
+                    <div class="unit-card" onclick="showGames('${unit.unit_ID}', '${unit.unit_name}')">
+                        <h3 style="margin-bottom:5px;">${unit.unit_name}</h3>
+                        <p style="color:#7f8c8d; font-size: 14px;">${unit.description || ''}</p>
+                    </div>`;
+            });
+        }
+
+        function showGames(unitId, unitTitle) {
+            currentUnitId = unitId; currentUnitTitle = unitTitle;
+            switchView('view-games');
+            document.getElementById('game-title').innerText = `${currentBookTitle} - ${unitTitle}`;
+            updateBreadcrumb(`首頁 > ${currentBookTitle} > ${unitTitle}`);
+
+            const vocabPreview = document.getElementById('vocab-preview');
+            vocabPreview.innerHTML = "";
+            const unitVocab = mockData.vocab.filter(v => String(v.unit_ID).trim() === String(unitId).trim());
+            
+            if(unitVocab.length > 0) {
+                unitVocab.forEach(v => { vocabPreview.innerHTML += `<span class="vocab-chip">${v.english} (${v.chinese})</span>`; });
+            } else { vocabPreview.innerHTML = "<span style='color:#7f8c8d;'>沒有找到單字資料</span>"; }
+            // --- 【新增】火車按鈕判斷邏輯 ---
+            const trainBtn = document.getElementById('train-btn');
+            if (unitId === 'U000') {
+                trainBtn.style.display = 'block'; // 顯示火車
+            } else {
+                trainBtn.style.display = 'none';  // 隱藏火車
+            }
+        }
+
+        function showBooks() {
+            currentBookId = ""; currentBookTitle = "";
+            switchView('view-books'); updateBreadcrumb();
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        function updateBreadcrumb(text = "首頁") { document.getElementById('breadcrumb').innerText = text; }
+
+        // ================= 遊戲啟動核心 (升級版：記住返回路徑) =================
+        function startGame(gameMode) {
+            const unitVocab = mockData.vocab.filter(v => String(v.unit_ID).trim() === String(currentUnitId).trim());
+            
+            if(unitVocab.length === 0) {
+                alert("本單元尚未建立單字，無法啟動遊戲！");
+                return;
+            }
+
+            // 1. 存入暫存
+            sessionStorage.setItem('itip_current_vocab', JSON.stringify(unitVocab));
+            sessionStorage.setItem('itip_current_title', `${currentBookTitle} - ${currentUnitTitle}`);
+            sessionStorage.setItem('itip_book_id', currentBookId);
+            sessionStorage.setItem('itip_book_title', currentBookTitle);
+            sessionStorage.setItem('itip_unit_id', currentUnitId);
+            sessionStorage.setItem('itip_unit_title', currentUnitTitle);
+
+            // 2. 優先檢查：如果是 B000-U000 專屬區域
+            if (currentBookId === 'B000' && currentUnitId === 'U000') {
+                window.location.href = 'lobby.html'; 
+                return; // 這裡直接 return，後面程式碼就不會執行了，避免衝突
+            }
+
+            // 3. 一般遊戲跳轉
+            if (gameMode === 'Memory') {
+                window.location.href = 'games/memory.html';
+            } else if (gameMode === 'Matching') {
+                window.location.href = 'games/matching.html';
+            } else if (gameMode === 'Ninja') {
+                window.location.href = 'games/ninja.html';
+            } else if (gameMode === 'Train') {
+                window.location.href = 'games/train.html';
+            } else {
+                alert(`即將開發：${gameMode} 引擎，敬請期待！`);
+            }
+        }
+
+        // ================= API 抓取邏輯 (升級版：自動跳轉回選單) =================
+        const API_URL = "https://script.google.com/macros/s/AKfycbw721Pde4bqoBIhE04hX9YWK4eqRNPWjGayyUeOYIOPHOTXmojS5n9n09RWe5LaPIyy/exec";
+
+        async function fetchData() {
+            const container = document.getElementById('books-container');
+            container.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #7f8c8d;'>雲端教材載入中...</p>";
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                mockData.books = data.books || [];
+                mockData.units = data.units || [];
+                mockData.vocab = data.vocab || [];
+                
+                renderBooks(); 
+
+                // 檢查網址，判斷是不是剛從遊戲結束回來
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('return') === 'games') {
+                    // 讀取暫存的狀態，自動幫學生點進去
+                    currentBookId = sessionStorage.getItem('itip_book_id');
+                    currentBookTitle = sessionStorage.getItem('itip_book_title');
+                    const savedUnitId = sessionStorage.getItem('itip_unit_id');
+                    const savedUnitTitle = sessionStorage.getItem('itip_unit_title');
+                    
+                    if (savedUnitId && savedUnitTitle) {
+                        showGames(savedUnitId, savedUnitTitle);
+                    }
+                    
+                    // 隱藏網址上的參數，讓網址列保持乾淨
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
+            } catch (error) {
+                container.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #e74c3c;'>資料載入失敗，請檢查網頁或網路狀態。</p>";
+            }
+        }
+        fetchData();
+    </script>
+</body>
+</html>
