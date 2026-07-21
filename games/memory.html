@@ -257,7 +257,7 @@
             
             cards.forEach(c => {
                 const el = document.createElement('div'); el.className = 'memory-card'; el.dataset.id = c.id;
-                el.innerHTML = `<div class="memory-inner"><div class="memory-front">ITIP</div><div class="memory-back">${c.html}</div></div>`;
+                el.innerHTML = `<div class="memory-inner"><div class="memory-front"></div><div class="memory-back">${c.html}</div></div>`;
                 
                 el.onclick = () => {
                     if (state.lockBoard || el === state.firstCard || el.classList.contains('star-mode')) return;
