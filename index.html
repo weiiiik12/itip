@@ -3,336 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ITIP 2.0</title>
+    <title>ITIP 2.0 - 遊戲大廳</title>
     <style>
-        /* ================= 核心大廳樣式設定 ================= */  
-        :root {
-            --bg-color: #f4f7f6; 
-            --text-color: #2c3e50; 
-            --primary-color: #ff3366; 
-            --card-bg: #ffffff; 
-            --border-color: #e2e8f0; 
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: #2c3e50; color: white;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; margin: 0; padding-top: 50px;
+        }
+        h1 { color: #f1c40f; font-size: 48px; margin-bottom: 10px; }
+        .subtitle { font-size: 18px; color: #bdc3c7; margin-bottom: 40px; }
+
+        /* 設定面板區塊 */
+        .setup-panel {
+            background: rgba(255, 255, 255, 0.1); padding: 30px;
+            border-radius: 15px; width: 80%; max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
-
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 0 40px 0; border-bottom: 2px dashed var(--border-color); margin-bottom: 30px;
+        .step-group { margin-bottom: 25px; }
+        .step-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #3498db; }
+        
+        select, button {
+            width: 100%; padding: 15px; font-size: 18px;
+            border-radius: 8px; border: none; outline: none;
+            cursor: pointer; font-weight: bold;
         }
-        header h1 {
-            font-size: 28px; font-weight: 800;
-            background: linear-gradient(45deg, #ff3366, #ff9933);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        select { background: #ecf0f1; color: #2c3e50; margin-bottom: 10px; }
+        
+        /* 模式選擇按鈕 */
+        .mode-options { display: flex; gap: 10px; }
+        .mode-btn {
+            flex: 1; background: #95a5a6; color: white; transition: 0.2s;
         }
-        #breadcrumb { font-size: 18px; color: #7f8c8d; margin-bottom: 20px; font-weight: 500; }
+        .mode-btn.active { background: #e74c3c; box-shadow: 0 4px 0 #c0392b; transform: translateY(-4px); }
 
-        .view-section { display: none; animation: fadeIn 0.4s ease-in-out; }
-        .view-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 25px; }
-        .book-card {
-            background-color: var(--card-bg); border-radius: 12px; overflow: hidden; cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s; border: 1px solid var(--border-color);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        /* 開始按鈕 */
+        .start-btn {
+            background: #2ecc71; color: white; font-size: 24px;
+            margin-top: 20px; box-shadow: 0 6px 0 #27ae60; transition: 0.1s;
         }
-        .book-card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
-        .book-cover { height: 280px; background-color: #ecf0f1; background-size: cover; background-position: center; border-bottom: 1px solid var(--border-color); }
-        .book-info { padding: 15px; }
-        .book-info h3 { margin-bottom: 5px; color: var(--text-color); }
-        .book-info p { color: #7f8c8d; font-size: 14px; font-weight: bold; }
-        .star-rating { color: #f1c40f; }
-
-        .unit-card {
-            background-color: var(--card-bg); padding: 20px; border-radius: 10px; cursor: pointer;
-            border-left: 6px solid var(--primary-color); box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s;
-        }
-        .unit-card:hover { background-color: #fff9fa; transform: translateX(8px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
-
-        .vocab-preview-box { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 1px solid var(--border-color); }
-        .vocab-chip { display: inline-block; background: #f1f2f6; color: #2f3640; padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: bold; border: 1px solid #dfe4ea; margin: 5px; }
-
-        .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; }
-        .game-btn {
-            padding: 30px 20px; border-radius: 15px; font-size: 20px; font-weight: bold; text-align: center;
-            cursor: pointer; color: white; transition: transform 0.1s; border: none;
-            box-shadow: 0 6px 0 rgba(0,0,0,0.2); 
-        }
-        .game-btn:hover { transform: translateY(-4px); box-shadow: 0 10px 0 rgba(0,0,0,0.2); }
-        .game-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
-        .bg-blue { background-color: #1368CE; } .bg-red { background-color: #E21B3C; } .bg-green { background-color: #26890C; } .bg-yellow { background-color: #FFA602; color: #333; } .bg-purple { background-color: #9b59b6; color: white;}
-
-        .back-btn { background-color: #ffffff; color: #34495e; border: 1px solid #bdc3c7; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-right: 15px; font-weight: bold; transition: 0.2s;}
-        .back-btn:hover { background-color: #ecf0f1; }
+        .start-btn:active { transform: translateY(6px); box-shadow: 0 0 0 transparent; }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>📚 ITIP 2.0</h1>
-    </header>
+    <h1>ITIP 2.0</h1>
+    <div class="subtitle">讓遊戲接管課堂，老師喝口水吧！</div>
 
-    <div id="breadcrumb"></div>
+    <div class="setup-panel">
+        <!-- 步驟 1：選擇教材 -->
+        <div class="step-group">
+            <div class="step-title">Step 1: 選擇今天的複習進度</div>
+            <select id="book-select">
+                <option value="">-- 請選擇課本 --</option>
+                <option value="B001">Sounds Great 1</option>
+                <option value="B002">Sounds Great 2</option>
+            </select>
+            <select id="unit-select">
+                <option value="">-- 請先選擇課本 --</option>
+                <!-- 這裡未來會透過 api.js 自動載入，目前先寫死作示範 -->
+                <option value="U000">Alphabet (A to Z)</option>
+                <option value="U001">Unit 1</option>
+            </select>
+        </div>
 
-    <!-- 視圖 1: 選擇教材 -->
-    <div id="view-books" class="view-section active">
-        <h2 style="margin-bottom: 20px;">選擇教材</h2>
-        <div class="grid-container" id="books-container"></div>
-    </div>
+        <!-- 步驟 2：選擇教學模式 -->
+        <div class="step-group">
+            <div class="step-title">Step 2: 選擇輸入模式 (ESL 黃金三角)</div>
+            <div class="mode-options">
+                <button class="mode-btn" onclick="selectMode('text', this)">📝 看字選義</button>
+                <button class="mode-btn active" onclick="selectMode('image', this)">🖼️ 看圖直覺</button>
+                <button class="mode-btn" onclick="selectMode('audio', this)">🔊 聽音辨字</button>
+            </div>
+        </div>
 
-    <!-- 視圖 2: 選擇單元 -->
-    <div id="view-units" class="view-section">
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-            <button class="back-btn" onclick="showBooks()">← 返回教材</button>
-            <h2 id="unit-title"></h2>
+        <!-- 步驟 3：選擇遊戲 -->
+        <div class="step-group">
+            <div class="step-title">Step 3: 選擇挑戰遊戲</div>
+            <select id="game-select">
+                <option value="core-games/quiz.html">🔥 雙打搶答 (四選一)</option>
+                <option value="core-games/matching.html">⚔️ 雙打配對 (消除)</option>
+            </select>
         </div>
-        <div class="grid-container" id="units-container"></div>
-    </div>
 
-    <!-- 視圖 3: 選擇玩法與主題 -->
-    <div id="view-games" class="view-section">
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-            <button class="back-btn" onclick="showUnits(currentBookId, currentBookTitle)">← 返回單元</button>
-            <h2 id="game-title"></h2>
-        </div>
-        
-        <div class="vocab-preview-box">
-            <h3 style="color: #7f8c8d; font-size: 16px; margin-bottom: 15px;">預覽本課單字：</h3>
-            <div id="vocab-preview" style="display: flex; gap: 5px; flex-wrap: wrap;"></div>
-        </div>
-    
-        <!-- STEP 1: 選擇核心測驗引擎 -->
-        <h3 style="margin-bottom: 15px; color: var(--text-color);">STEP 1: 選擇玩法 (Core Game)</h3>
-        <div class="game-grid" id="core-engine-selection" style="margin-bottom: 30px;">
-            <div class="game-btn bg-purple" onclick="selectCoreGame('Matching', this)">
-                🔗 Matching<br><small style="font-size:13px; font-weight:normal;">消除配對</small>
-            </div>
-            <div class="game-btn bg-blue" onclick="selectCoreGame('Memory', this)">
-                🃏 Memory<br><small style="font-size:13px; font-weight:normal;">記憶翻牌</small>
-            </div>
-            <div class="game-btn bg-green" onclick="selectCoreGame('Unscramble', this)">
-                🧩 Unscramble<br><small style="font-size:13px; font-weight:normal;">重組解碼</small>
-            </div>
-            <div class="game-btn" style="background-color: #2c3e50; color: white;" onclick="selectCoreGame('PhonicsHunter', this)">
-                🎯 Phonics Hunter<br><small style="font-size:13px; font-weight:normal;">發音獵人</small>
-            </div>
-            <div class="game-btn bg-red" onclick="selectCoreGame('ChooseTheRightAnswer', this)">
-                📝 Choose the Right Answer<br><small style="font-size:13px; font-weight:normal;">四選一挑戰</small>
-            </div>
-        </div>
-    
-        <hr style="margin: 20px 0; border: 1px dashed var(--border-color);">
-    
-        <!-- STEP 2: 選擇競賽主題 -->
-        <h3 style="margin-bottom: 15px; color: var(--text-color);">STEP 2: 選擇競賽場景 (Theme)</h3>
-        <div class="game-grid" id="theme-selection">
-            <!-- 隨機轉盤 -->
-            <div class="game-btn bg-yellow" onclick="openThemeWheel()">
-                🎡 Random<br><small style="font-size:13px; font-weight:normal; color:#333;">隨機抽取主題</small>
-            </div>
-            
-            <!-- 手動選擇主題 -->
-            <div class="game-btn bg-blue" onclick="startMatch('Monopoly')">
-                🎲 Monopoly<br><small style="font-size:13px; font-weight:normal;">大富翁</small>
-            </div>
-            <div class="game-btn bg-red" onclick="startMatch('TugOfWar')">
-                🪢 Tug of War<br><small style="font-size:13px; font-weight:normal;">拔河對決</small>
-            </div>
-            <div class="game-btn bg-green" onclick="startMatch('Ninja')">
-                🥷 Ninja<br><small style="font-size:13px; font-weight:normal;">忍者修煉</small>
-            </div>
-            <div class="game-btn bg-purple" onclick="startMatch('RelayRace')">
-                🏎️ Relay Race<br><small style="font-size:13px; font-weight:normal;">極速賽道</small>
-            </div>
-        </div>
+        <button class="start-btn" onclick="startGame()">🚀 START GAME</button>
     </div>
 
     <script>
-        let mockData = { books: [], units: [], vocab: [] };
-let currentBookId = "", currentBookTitle = "", currentUnitId = "", currentUnitTitle = "";
+        // 預設模式為圖片
+        let selectedMode = 'image';
 
-// 【新增】用來記住 STEP 1 選擇的測驗引擎
-let selectedCoreGame = ""; 
-
-// ================= 介面導覽邏輯 (保留原本完美的設計) =================//
-function renderBooks() {
-    const container = document.getElementById('books-container');
-    container.innerHTML = ""; 
-    mockData.books.forEach(book => {
-        const bgImage = book.cover_image ? `url('${book.cover_image}')` : 'none';
-        container.innerHTML += `
-            <div class="book-card" onclick="showUnits('${book.book_ID}', '${book.title}')">
-                <div class="book-cover" style="background-image: ${bgImage}"></div>
-                <div class="book-info"><h3>${book.title}</h3><p><span class="star-rating">★★★★★</span></p></div>
-            </div>`;
-    });
-    updateBreadcrumb();
-}
-
-function showUnits(bookId, bookTitle) {
-    currentBookId = bookId; currentBookTitle = bookTitle;
-    switchView('view-units');
-    document.getElementById('unit-title').innerText = `${bookTitle} - 單元列表`;
-    updateBreadcrumb(`首頁 > ${bookTitle}`);
-    
-    const container = document.getElementById('units-container');
-    container.innerHTML = "";
-    const bookUnits = mockData.units.filter(u => String(u.book_ID).trim() === String(bookId).trim());
-
-    if(bookUnits.length === 0) { container.innerHTML = "<p style='color:#7f8c8d;'>此教材尚未建立單元。</p>"; return; }
-    bookUnits.forEach(unit => {
-        container.innerHTML += `
-            <div class="unit-card" onclick="showGames('${unit.unit_ID}', '${unit.unit_name}')">
-                <h3 style="margin-bottom:5px;">${unit.unit_name}</h3>
-                <p style="color:#7f8c8d; font-size: 14px;">${unit.description || ''}</p>
-            </div>`;
-    });
-}
-
-function showGames(unitId, unitTitle) {
-    currentUnitId = unitId; currentUnitTitle = unitTitle;
-    switchView('view-games');
-    document.getElementById('game-title').innerText = `${currentBookTitle} - ${unitTitle}`;
-    updateBreadcrumb(`首頁 > ${currentBookTitle} > ${unitTitle}`);
-
-    const vocabPreview = document.getElementById('vocab-preview');
-    vocabPreview.innerHTML = "";
-    const unitVocab = mockData.vocab.filter(v => String(v.unit_ID).trim() === String(unitId).trim());
-    
-    if(unitVocab.length > 0) {
-        unitVocab.forEach(v => { vocabPreview.innerHTML += `<span class="vocab-chip">${v.english} (${v.chinese})</span>`; });
-    } else { vocabPreview.innerHTML = "<span style='color:#7f8c8d;'>沒有找到單字資料</span>"; }
-    
-    // 每次進入這個畫面時，重置上一次的選擇
-    selectedCoreGame = "";
-    const allBtns = document.querySelectorAll('#core-engine-selection .game-btn');
-    allBtns.forEach(btn => {
-        btn.style.border = "none";
-        btn.style.transform = "scale(1)";
-        btn.style.boxShadow = "0 6px 0 rgba(0,0,0,0.2)";
-    });
-}
-
-function showBooks() {
-    currentBookId = ""; currentBookTitle = "";
-    switchView('view-books'); updateBreadcrumb();
-}
-
-function switchView(viewId) {
-    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-}
-
-function updateBreadcrumb(text = "首頁") { document.getElementById('breadcrumb').innerText = text; }
-
-// ================= 【全新】遊戲啟動核心：兩階段選擇 =================
-
-// STEP 1 的點擊邏輯：記錄選擇，並加上明顯的外框
-function selectCoreGame(gameMode, element) {
-    selectedCoreGame = gameMode;
-    
-    // 把所有按鈕的邊框恢復原狀
-    const allBtns = document.querySelectorAll('#core-engine-selection .game-btn');
-    allBtns.forEach(btn => {
-        btn.style.border = "none";
-        btn.style.transform = "scale(1)";
-        btn.style.boxShadow = "0 6px 0 rgba(0,0,0,0.2)";
-    });
-
-    // 幫被點擊的按鈕加上紅色外框與放大效果，讓老師知道選中了
-    element.style.border = "4px solid #ff3366";
-    element.style.transform = "scale(1.05)";
-    element.style.boxShadow = "0 10px 15px rgba(255, 51, 102, 0.4)";
-}
-
-// STEP 2 的點擊邏輯：檢查是否選了玩法，然後存入暫存並跳轉
-function startMatch(themeName) {
-    if (!selectedCoreGame) {
-        alert("請先選擇上方的「STEP 1: 測驗模式 (Core Game)」喔！");
-        return;
-    }
-
-    const unitVocab = mockData.vocab.filter(v => String(v.unit_ID).trim() === String(currentUnitId).trim());
-    if(unitVocab.length === 0) {
-        alert("本單元尚未建立單字，無法啟動遊戲！");
-        return;
-    }
-
-    // 1. 存入暫存 (包含單字資料與新架構的引擎/主題)
-    sessionStorage.setItem('itip_current_vocab', JSON.stringify(unitVocab));
-    sessionStorage.setItem('itip_current_title', `${currentBookTitle} - ${currentUnitTitle}`);
-    sessionStorage.setItem('itip_book_id', currentBookId);
-    sessionStorage.setItem('itip_book_title', currentBookTitle);
-    sessionStorage.setItem('itip_unit_id', currentUnitId);
-    sessionStorage.setItem('itip_unit_title', currentUnitTitle);
-    
-    // 【關鍵】記錄選擇的引擎與主題，供下一頁的遊戲引擎讀取
-    sessionStorage.setItem('itip_core_game', selectedCoreGame);
-    sessionStorage.setItem('itip_theme', themeName);
-
-    // 2. 檔案路徑對應 (對齊 GitHub core-games 資料夾)
-    let targetHtml = "";
-    if (selectedCoreGame === 'Matching') targetHtml = "matching.html";
-    else if (selectedCoreGame === 'Memory') targetHtml = "memory.html";
-    else if (selectedCoreGame === 'Unscramble') targetHtml = "unscramble.html";
-    else if (selectedCoreGame === 'PhonicsHunter') targetHtml = "hunter.html";
-    else if (selectedCoreGame === 'ChooseTheRightAnswer') targetHtml = "quiz.html";
-    
-    // 3. 執行跳轉
-    if (targetHtml) {
-        window.location.href = `core-games/${targetHtml}`;
-    } else {
-        alert("找不到對應的遊戲引擎！");
-    }
-}
-
-// 留給轉盤的函式
-function openThemeWheel() {
-    if (!selectedCoreGame) {
-        alert("請先選擇上方的「STEP 1: 測驗模式 (Core Game)」喔！");
-        return;
-    }
-    // 這裡未來會彈出全螢幕大轉盤，轉完後再呼叫 startMatch('抽到的主題')
-    alert("大轉盤動畫準備中... 敬請期待！");
-}
-
-// ================= API 抓取邏輯 (維持原本的優秀設計) =================
-const API_URL = "https://script.google.com/macros/s/AKfycbw721Pde4bqoBIhE04hX9YWK4eqRNPWjGayyUeOYIOPHOTXmojS5n9n09RWe5LaPIyy/exec";
-
-async function fetchData() {
-    const container = document.getElementById('books-container');
-    container.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #7f8c8d;'>雲端教材載入中...</p>";
-    try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        mockData.books = data.books || [];
-        mockData.units = data.units || [];
-        mockData.vocab = data.vocab || [];
-        
-        renderBooks(); 
-
-        // 檢查網址，判斷是不是剛從遊戲結束回來
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('return') === 'games') {
-            currentBookId = sessionStorage.getItem('itip_book_id');
-            currentBookTitle = sessionStorage.getItem('itip_book_title');
-            const savedUnitId = sessionStorage.getItem('itip_unit_id');
-            const savedUnitTitle = sessionStorage.getItem('itip_unit_title');
-            
-            if (savedUnitId && savedUnitTitle) {
-                showGames(savedUnitId, savedUnitTitle);
-            }
-            
-            window.history.replaceState({}, document.title, window.location.pathname);
+        // 點擊切換模式的視覺效果與變數更新
+        function selectMode(mode, btnElement) {
+            selectedMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
         }
 
-    } catch (error) {
-        container.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #e74c3c;'>資料載入失敗，請檢查網頁或網路狀態。</p>";
-    }
-}
-fetchData();
+        function startGame() {
+            const unit = document.getElementById('unit-select').value;
+            const gameUrl = document.getElementById('game-select').value;
+
+            if (!unit) {
+                alert("請先選擇要複習的單元！");
+                return;
+            }
+
+            // 1. 將老師選好的設定打包存入 sessionStorage
+            const config = {
+                unit_ID: unit,
+                mode: selectedMode,
+                winCondition: 'score', // 未來這裡可以接上 UI 選擇「時間制」或「分數制」
+                winValue: 15
+            };
+            sessionStorage.setItem('itip_config', JSON.stringify(config));
+
+            // ★ 2. 呼叫 api.js (這部分稍後會補上真實的 GAS 串接，目前直接跳轉) ★
+            // ITIP_Data.prepareGameData(unit).then(() => { ... })
+            
+            // 3. 跳轉進入戰場
+            window.location.href = gameUrl;
+        }
     </script>
 </body>
 </html>
