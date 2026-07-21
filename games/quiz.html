@@ -19,9 +19,10 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; 
         }
         .back-btn { padding: 8px 15px; border-radius: 20px; border: 1px solid #ccc; background: white; cursor: pointer; font-weight: bold; }
-        .score-board { font-size: 28px; font-weight: 900; }
-        .score-red { color: #E21B3C; margin-right: 20px; }
-        .score-blue { color: #1cb0f6; margin-left: 20px; }
+        .score-board { font-size: 24px; font-weight: 900; }
+        .score-red { color: #E21B3C; margin-right: 15px; }
+        .score-blue { color: #1cb0f6; margin-left: 15px; }
+        .timer-display { font-size: 26px; font-weight: 900; color: #ff3366; background: #fff0f3; padding: 5px 15px; border-radius: 15px; }
 
         /* 左右分屏競技場 */
         #game-arena { flex-grow: 1; display: flex; width: 100%; }
@@ -73,7 +74,7 @@
         #red-zone .option-btn { color: #E21B3C; }
         #blue-zone .option-btn { color: #1cb0f6; }
 
-        /* 設定彈窗樣式 (仿照 matching) */
+        /* 設定與結算彈窗樣式 */
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:1000; display:flex; flex-direction:column; justify-content:center; align-items:center; }
         .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 400px; text-align: center; }
         select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; }
@@ -82,7 +83,7 @@
 </head>
 <body>
 
-    <!-- 1. 設定畫面 (仿照 matching 的多感官選單) -->
+    <!-- 1. 設定畫面 (選擇題目類型、選項類型、遊戲時間) -->
     <div id="setup-screen" class="modal">
         <div class="setup-box">
             <h2 style="margin-top:0;">📝 選擇題對決設定 📝</h2>
@@ -99,11 +100,25 @@
                 <option value="english">英文</option>
                 <option value="image">圖片</option>
             </select>
-            <button class="start-btn" onclick="startQuiz()">開始無限對決！</button>
+            <label style="display:block; text-align:left; font-weight:bold;">對決時間：</label>
+            <select id="game-time">
+                <option value="60">60 秒 (1 分鐘)</option>
+                <option value="120" selected>120 秒 (2 分鐘)</option>
+                <option value="180">180 秒 (3 分鐘)</option>
+                <option value="300">300 秒 (5 分鐘)</option>
+            </select>
+            <button class="start-btn" onclick="startQuiz()">開始限時對決！</button>
         </div>
     </div>
 
-    <!-- 頂部資訊 (無時間限制) -->
+    <!-- 2. 結算畫面 (時間到顯示) -->
+    <div id="game-over-screen" class="modal" style="display:none;">
+        <h1 id="winner-text" style="font-size: 50px; margin-bottom: 10px;"></h1>
+        <p id="win-reason" style="font-size: 22px; color: #555; margin-bottom: 30px;"></p>
+        <button class="start-btn" style="max-width: 300px; background: #4facfe;" onclick="location.reload()">重新設定再戰</button>
+    </div>
+
+    <!-- 頂部資訊 (含即時倒數計時器) -->
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
         <div class="score-board">
@@ -111,7 +126,7 @@
             ⚔️
             <span class="score-blue">Blue: <span id="score-blue-text">0</span></span>
         </div>
-        <div style="width: 80px;"></div>
+        <div class="timer-display">⏳ <span id="time-display">120</span>s</div>
     </div>
 
     <!-- 遊戲主區塊：左右獨立分屏 -->
@@ -151,8 +166,12 @@
 
     let config = {
         qType: 'english',
-        optType: 'chinese'
+        optType: 'chinese',
+        timeLimit: 120
     };
+
+    let timerInterval = null;
+    let isGameOver = false;
 
     function fixPath(url) { 
         return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; 
@@ -175,13 +194,51 @@
     function startQuiz() {
         config.qType = document.getElementById('q-type').value;
         config.optType = document.getElementById('opt-type').value;
+        config.timeLimit = parseInt(document.getElementById('game-time').value);
+        
         document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('time-display').innerText = config.timeLimit;
+
+        // 啟動倒數計時器
+        timerInterval = setInterval(() => {
+            config.timeLimit--;
+            document.getElementById('time-display').innerText = config.timeLimit;
+            if (config.timeLimit <= 0) {
+                endGame();
+            }
+        }, 1000);
 
         loadNextQuestion('red');
         loadNextQuestion('blue');
     }
 
-    // 渲染內容對應函式
+    // 時間到結束遊戲
+    function endGame() {
+        isGameOver = true;
+        clearInterval(timerInterval);
+
+        // 鎖定雙邊盤面
+        document.getElementById('red-zone').classList.add('locked');
+        document.getElementById('blue-zone').classList.add('locked');
+
+        let redScore = state.red.score;
+        let blueScore = state.blue.score;
+        let winnerStr = "";
+        let reasonStr = `紅隊得 ${redScore} 分 vs 藍隊得 ${blueScore} 分`;
+
+        if (redScore > blueScore) {
+            winnerStr = "<span style='color:#E21B3C;'>🎉 紅隊獲勝！</span>";
+        } else if (blueScore > redScore) {
+            winnerStr = "<span style='color:#1cb0f6;'>🎉 藍隊獲勝！</span>";
+        } else {
+            winnerStr = "<span style='color:#888;'>🤝 雙方平手！</span>";
+        }
+
+        document.getElementById('winner-text').innerHTML = winnerStr;
+        document.getElementById('win-reason').innerText = reasonStr;
+        document.getElementById('game-over-screen').style.display = 'flex';
+    }
+
     function renderContent(item, type) {
         if (type === 'image') {
             return item.image_URL ? `<img src="${fixPath(item.image_URL)}">` : "無圖";
@@ -192,29 +249,27 @@
         if (type === 'audio') {
             return "🔊 點我聽發音";
         }
-        return item.chinese; // chinese
+        return item.chinese; 
     }
 
-    // 載入下一題
     function loadNextQuestion(team) {
+        if (isGameOver) return;
+
         document.getElementById(`${team}-zone`).classList.remove('locked');
         document.getElementById(`${team}-feedback`).classList.remove('show-feedback');
         
         let correctItem = vocabList[Math.floor(Math.random() * vocabList.length)];
         state[team].currentItem = correctItem;
 
-        // 顯示上方題目
         let qContent = document.getElementById(`${team}-q-content`);
         qContent.innerHTML = renderContent(correctItem, config.qType);
 
-        // 如果剛好選到音檔，自動唸一次
         if (config.qType === 'audio') {
             if (correctItem.audio_URL) {
                 try { new Audio(fixPath(correctItem.audio_URL)).play(); } catch(e) { speakWord(correctItem.english); }
             } else {
                 speakWord(correctItem.english);
             }
-            // 讓上方題目也能點擊再聽一次
             qContent.style.cursor = 'pointer';
             qContent.onclick = () => {
                 if (correctItem.audio_URL) {
@@ -228,7 +283,6 @@
             qContent.onclick = null;
         }
 
-        // 產生 4 個不重複選項
         let options = [correctItem];
         while (options.length < 4) {
             let randomItem = vocabList[Math.floor(Math.random() * vocabList.length)];
@@ -238,7 +292,6 @@
         }
         options.sort(() => Math.random() - 0.5);
 
-        // 渲染按鈕
         const optionsContainer = document.getElementById(`${team}-options`);
         optionsContainer.innerHTML = ''; 
         
@@ -252,8 +305,9 @@
         });
     }
 
-    // 處理作答
     function handleAnswer(team, btnElement, selectedItem) {
+        if (isGameOver) return;
+
         let correctItem = state[team].currentItem;
         let isCorrect = (selectedItem.english === correctItem.english);
         let zone = document.getElementById(`${team}-zone`);
@@ -275,10 +329,8 @@
             feedback.style.color = '#f44336';
             playSound('wrong');
             
-            // 找出正確答案按鈕並標綠
             let allBtns = document.getElementById(`${team}-options`).children;
             for(let b of allBtns) {
-                // 比對內容或直接核對
                 if (config.optType === 'chinese' && b.innerText === correctItem.chinese) {
                     b.classList.add('correct');
                 } else if (config.optType === 'english' && b.innerText === correctItem.english) {
@@ -289,9 +341,10 @@
 
         feedback.classList.add('show-feedback');
 
-        // 無時間限制，答對/答錯後 1.5 秒自動進入下一題，給老師充裕時間批改聯絡簿
         setTimeout(() => {
-            loadNextQuestion(team);
+            if (!isGameOver) {
+                loadNextQuestion(team);
+            }
         }, 1500);
     }
 </script>
