@@ -3,66 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ITIP 2.0 - 遊戲大廳</title>
+    <title>ITIP 2.0 - 戰術控制台</title>
     <style>
+        /* 匯入科技感英文字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff00ea;
+            --dark-bg: #0a0a12;
+            --panel-bg: rgba(10, 15, 25, 0.85);
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background-color: #2c3e50; color: white;
+            font-family: 'Orbitron', 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--dark-bg);
+            /* 繪製科技感背景網格 */
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: white;
             display: flex; flex-direction: column; align-items: center;
-            height: 100vh; margin: 0; padding-top: 50px;
+            height: 100vh; margin: 0; padding-top: 40px;
+            overflow: hidden;
+            user-select: none;
         }
-        h1 { color: #f1c40f; font-size: 48px; margin-bottom: 10px; }
-        .subtitle { font-size: 18px; color: #bdc3c7; margin-bottom: 40px; }
 
-        /* 設定面板區塊 */
+        /* 標題發光特效 */
+        h1 { 
+            color: var(--neon-cyan); 
+            font-size: 52px; margin-bottom: 5px; 
+            text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+            letter-spacing: 5px;
+            font-weight: 900;
+        }
+        .subtitle { font-size: 16px; color: #7f8c8d; margin-bottom: 40px; letter-spacing: 2px; }
+
+        /* 電競戰術面板 */
         .setup-panel {
-            background: rgba(255, 255, 255, 0.1); padding: 30px;
-            border-radius: 15px; width: 80%; max-width: 600px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: var(--panel-bg); 
+            padding: 40px;
+            width: 80%; max-width: 650px;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            box-shadow: inset 0 0 30px rgba(0, 243, 255, 0.05), 0 10px 40px rgba(0,0,0,0.8);
+            position: relative;
+            backdrop-filter: blur(5px);
         }
 
-        .step-group { margin-bottom: 25px; }
-        .step-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #3498db; }
+        /* 面板四角的裝飾線 */
+        .setup-panel::before {
+            content: ''; position: absolute; top: -2px; left: -2px;
+            width: 20px; height: 20px; border-top: 3px solid var(--neon-cyan); border-left: 3px solid var(--neon-cyan);
+        }
+        .setup-panel::after {
+            content: ''; position: absolute; bottom: -2px; right: -2px;
+            width: 20px; height: 20px; border-bottom: 3px solid var(--neon-cyan); border-right: 3px solid var(--neon-cyan);
+        }
+
+        .step-group { margin-bottom: 30px; }
+        .step-title { 
+            font-size: 16px; font-weight: 700; margin-bottom: 15px; 
+            color: var(--neon-pink); 
+            text-shadow: 0 0 8px rgba(255, 0, 234, 0.4);
+            border-left: 4px solid var(--neon-pink);
+            padding-left: 10px;
+            letter-spacing: 1px;
+        }
         
+        /* 下拉選單與按鈕基礎樣式 */
         select, button {
-            width: 100%; padding: 15px; font-size: 18px;
-            border-radius: 8px; border: none; outline: none;
-            cursor: pointer; font-weight: bold;
+            width: 100%; padding: 15px; font-size: 18px; font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            background: rgba(0,0,0,0.6); color: var(--neon-cyan);
+            border: 1px solid rgba(0, 243, 255, 0.3); outline: none;
+            cursor: pointer; transition: all 0.3s ease;
         }
-        select { background: #ecf0f1; color: #2c3e50; margin-bottom: 10px; }
+        select { margin-bottom: 15px; appearance: none; font-weight: bold; }
+        select:focus, select:hover { border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); }
+        select option { background: var(--dark-bg); color: white; }
         
-        /* 模式選擇按鈕 */
-        .mode-options { display: flex; gap: 10px; }
+        /* ESL 模式選擇按鈕 (排成一列) */
+        .mode-options { display: flex; gap: 15px; }
         .mode-btn {
-            flex: 1; background: #95a5a6; color: white; transition: 0.2s;
+            flex: 1; border: 1px solid #444; color: #777; background: transparent; font-weight: bold;
         }
-        .mode-btn.active { background: #e74c3c; box-shadow: 0 4px 0 #c0392b; transform: translateY(-4px); }
+        .mode-btn:hover { border-color: var(--neon-cyan); color: white; }
+        .mode-btn.active { 
+            background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); 
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3) inset; 
+            text-shadow: 0 0 5px var(--neon-cyan);
+        }
 
-        /* 開始按鈕 */
+        /* 啟動按鈕 */
         .start-btn {
-            background: #2ecc71; color: white; font-size: 24px;
-            margin-top: 20px; box-shadow: 0 6px 0 #27ae60; transition: 0.1s;
+            background: transparent; color: var(--neon-pink); font-size: 26px; font-weight: 900;
+            margin-top: 15px; border: 2px solid var(--neon-pink);
+            letter-spacing: 3px; text-transform: uppercase;
         }
-        .start-btn:active { transform: translateY(6px); box-shadow: 0 0 0 transparent; }
+        .start-btn:hover { 
+            background: var(--neon-pink); color: white; 
+            box-shadow: 0 0 20px var(--neon-pink); 
+            text-shadow: 0 0 5px white;
+        }
+        .start-btn:active { transform: scale(0.98); }
+
     </style>
 </head>
 <body>
 
     <h1>ITIP 2.0</h1>
-    <div class="subtitle">讓遊戲接管課堂，老師喝口水吧！</div>
+    <div class="subtitle">TACTICAL CONTROL CENTER</div>
 
     <div class="setup-panel">
+        
         <!-- 步驟 1：選擇教材 -->
         <div class="step-group">
-            <div class="step-title">Step 1: 選擇今天的複習進度</div>
+            <div class="step-title">STEP 01 // SELECT TARGET DATABASE</div>
             <select id="book-select">
-                <option value="">-- 請選擇課本 --</option>
+                <option value="">-- AWAITING BOOK SELECTION --</option>
                 <option value="B001">Sounds Great 1</option>
                 <option value="B002">Sounds Great 2</option>
             </select>
             <select id="unit-select">
-                <option value="">-- 請先選擇課本 --</option>
-                <!-- 這裡未來會透過 api.js 自動載入，目前先寫死作示範 -->
+                <option value="">-- AWAITING UNIT SELECTION --</option>
+                <!-- 未來由 api.js 載入 -->
                 <option value="U000">Alphabet (A to Z)</option>
                 <option value="U001">Unit 1</option>
             </select>
@@ -70,31 +135,33 @@
 
         <!-- 步驟 2：選擇教學模式 -->
         <div class="step-group">
-            <div class="step-title">Step 2: 選擇輸入模式 (ESL 黃金三角)</div>
+            <div class="step-title">STEP 02 // ESL INPUT MODE</div>
             <div class="mode-options">
-                <button class="mode-btn" onclick="selectMode('text', this)">📝 看字選義</button>
-                <button class="mode-btn active" onclick="selectMode('image', this)">🖼️ 看圖直覺</button>
-                <button class="mode-btn" onclick="selectMode('audio', this)">🔊 聽音辨字</button>
+                <button class="mode-btn" onclick="selectMode('text', this)">TEXT</button>
+                <button class="mode-btn active" onclick="selectMode('image', this)">IMAGE</button>
+                <button class="mode-btn" onclick="selectMode('audio', this)">AUDIO</button>
             </div>
         </div>
 
         <!-- 步驟 3：選擇遊戲 -->
         <div class="step-group">
-            <div class="step-title">Step 3: 選擇挑戰遊戲</div>
+            <div class="step-title">STEP 03 // BATTLEFIELD PROTOCOL</div>
             <select id="game-select">
-                <option value="core-games/quiz.html">🔥 雙打搶答 (四選一)</option>
-                <option value="core-games/matching.html">⚔️ 雙打配對 (消除)</option>
+                <option value="core-games/quiz.html">[ DUEL ] 四選一搶答</option>
+                <option value="core-games/matching.html">[ SWARM ] 雙打配對</option>
             </select>
         </div>
 
-        <button class="start-btn" onclick="startGame()">🚀 START GAME</button>
+        <!-- 啟動按鈕 -->
+        <button class="start-btn" onclick="startGame()">INITIALIZE 啟動</button>
     </div>
 
+    <!-- 系統連線腳本 -->
+    <script src="js/api.js"></script>
+
     <script>
-        // 預設模式為圖片
         let selectedMode = 'image';
 
-        // 點擊切換模式的視覺效果與變數更新
         function selectMode(mode, btnElement) {
             selectedMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
@@ -106,23 +173,20 @@
             const gameUrl = document.getElementById('game-select').value;
 
             if (!unit) {
-                alert("請先選擇要複習的單元！");
+                alert("SYSTEM ERROR: 請先選擇作戰單元！");
                 return;
             }
 
-            // 1. 將老師選好的設定打包存入 sessionStorage
             const config = {
                 unit_ID: unit,
                 mode: selectedMode,
-                winCondition: 'score', // 未來這裡可以接上 UI 選擇「時間制」或「分數制」
+                winCondition: 'score', 
                 winValue: 15
             };
             sessionStorage.setItem('itip_config', JSON.stringify(config));
 
-            // ★ 2. 呼叫 api.js (這部分稍後會補上真實的 GAS 串接，目前直接跳轉) ★
-            // ITIP_Data.prepareGameData(unit).then(() => { ... })
-            
-            // 3. 跳轉進入戰場
+            // 注意：這裡假設你已經手動把一些測試資料塞給 sessionStorage 了，
+            // 若還沒，點擊開始進入遊戲頁面會顯示「沒有讀取到單字資料」。
             window.location.href = gameUrl;
         }
     </script>
