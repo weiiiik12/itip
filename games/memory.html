@@ -3,162 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memory - ITIP 2.0</title>
+    <title>Memory Battle - ITIP 1.0</title>
     <style>
     /* 全域設定 */
     body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
 
     /* Header */
-    .game-header { background: white; padding: 15px 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .game-header { background: white; padding: 10px 20px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
 
     /* 回上頁按鈕 */
     .back-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; background-color: white; color: #555; border: 1px solid #e0e4e8; border-radius: 25px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s ease; }
     .back-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); color: #4facfe; border-color: #4facfe; }
 
-    /* 遊戲區塊：加入最大寬度，強迫大螢幕時排成 5x2 (或是 4+4+2) */
-        #memory-board { 
-            display: flex; flex-wrap: wrap; justify-content: center; align-content: center; 
-            gap: clamp(10px, 2vw, 20px); /* 間距也隨螢幕彈性調整 */
-            padding: 20px; flex-grow: 1; overflow-y: auto; 
-            max-width: 900px; /* 【關鍵】限制整個遊戲板的最大寬度 */
-            margin: 0 auto; 
-        }
+    /* 記分板與回合提示 */
+    .score-board { font-size: 22px; font-weight: 900; }
+    .score-red { color: #E21B3C; margin-right: 15px; }
+    .score-blue { color: #1cb0f6; margin-left: 15px; }
+    
+    .turn-indicator { font-size: 20px; font-weight: bold; padding: 6px 20px; border-radius: 20px; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .turn-red { background: #ffebee; color: #E21B3C; border: 2px solid #E21B3C; transform: scale(1.05); }
+    .turn-blue { background: #e3f2fd; color: #1cb0f6; border: 2px solid #1cb0f6; transform: scale(1.05); }
+
+    /* 遊戲區塊：加入最大寬度 */
+    #memory-board { 
+        display: flex; flex-wrap: wrap; justify-content: center; align-content: center; 
+        gap: clamp(10px, 2vw, 20px); 
+        padding: 20px; flex-grow: 1; overflow-y: auto; 
+        max-width: 1000px; /* 放寬一點讓橫式卡片好排版 */
+        margin: 0 auto; 
+    }
         
     /* 終極防線：鎖定時禁止所有點擊 */
     #memory-board.board-locked { pointer-events: none; }
 
-    /* 卡片設計：改用 clamp 自動縮放 */
-        .memory-card { 
-            width: clamp(70px, 15vw, 150px); /* 【關鍵】最小 70px，最大 150px，平常佔畫面 15% */
-            aspect-ratio: 3/4; /* 保持撲克牌的比例 */
-            height: auto; 
-            cursor: pointer; 
-            perspective: 1000px; 
-            -webkit-perspective: 1000px; 
-            position: relative; 
-        }
+    /* 卡片設計：改成橫式 (4:3)，寬度調寬 */
+    .memory-card { 
+        width: clamp(100px, 18vw, 180px); /* 寬度加寬 */
+        aspect-ratio: 4/3; /* 【關鍵修改】改成橫向比例 */
+        height: auto; 
+        cursor: pointer; 
+        perspective: 1000px; 
+        -webkit-perspective: 1000px; 
+        position: relative; 
+    }
     
     .memory-inner { 
-        position: relative; 
-        width: 100%; 
-        height: 100%; 
-        transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1), opacity 0.3s ease;
-        transform-style: preserve-3d; 
-        -webkit-transform-style: preserve-3d; 
-        border-radius: 15px; 
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+        position: relative; width: 100%; height: 100%; 
+        transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1), opacity 0.3s ease;
+        transform-style: preserve-3d; -webkit-transform-style: preserve-3d; 
+        border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
     }
     
-    .memory-card.flip .memory-inner { 
-        transform: rotateY(180deg); 
-        -webkit-transform: rotateY(180deg);
-    }
-    
+    .memory-card.flip .memory-inner { transform: rotateY(180deg); -webkit-transform: rotateY(180deg); }
     .memory-card:not(.star-mode):hover .memory-inner { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
 
     .memory-front, .memory-back { 
-        position: absolute; 
-        top: 0; 
-        left: 0;
-        width: 100%; 
-        height: 100%; 
-        backface-visibility: hidden; 
-        -webkit-backface-visibility: hidden; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        border-radius: 15px; 
-        font-size: 28px; 
-        text-align: center;
-        box-sizing: border-box; 
-        padding: 10px; 
-        word-break: break-word;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+        backface-visibility: hidden; -webkit-backface-visibility: hidden; 
+        display: flex; align-items: center; justify-content: center; 
+        border-radius: 12px; font-size: 28px; text-align: center;
+        box-sizing: border-box; padding: 5px; word-break: break-word; /* 縮小 Padding */
     }
     
     .memory-front { 
         background: linear-gradient(135deg, #4facfe, #00f2fe); 
-        color: white; 
-        font-size: 40px; 
-        z-index: 2;
+        color: white; font-size: 50px; z-index: 2;
         transform: rotateY(0deg) translateZ(1px); 
-        -webkit-transform: rotateY(0deg) translateZ(1px);
     }
     
     .memory-back { 
-        background: white; 
-        border: 2px solid #00f2fe; 
-        color: #333; 
-        font-weight: bold; 
+        background: white; border: 3px solid #00f2fe; color: #333; font-weight: bold; 
         transform: rotateY(180deg) translateZ(1px); 
-        -webkit-transform: rotateY(180deg) translateZ(1px);
     }
     
-    .card-img { max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 8px; }
+    /* 圖片填滿設定：減少白邊 */
+    .card-img { 
+        width: 98%; height: 98%; /* 讓圖片盡量撐滿卡片 */
+        object-fit: contain; border-radius: 6px; 
+    }
 
-    /* === 新增：配對成功的星星特效 === */
+    /* 配對成功的特效 */
     .memory-card.star-mode { cursor: default; }
     .memory-card.star-mode .memory-inner {
-        opacity: 0; /* 隱藏原本的卡片 */
-        transform: scale(0.5) rotateY(180deg); /* 縮小消失的錯覺 */
+        opacity: 0; transform: scale(0.5) rotateY(180deg); 
     }
     .memory-card.star-mode::after {
-        content: '⭐';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        font-size: 80px; /* 星星大小 */
-        z-index: 10;
-        /* 星星彈出並旋轉的動畫 */
-        animation: starPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        pointer-events: none;
+        content: '⭐'; position: absolute; top: 50%; left: 50%; font-size: 80px; z-index: 10;
+        animation: starPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: none;
     }
     @keyframes starPop {
         0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; }
         100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6)); }
     }
+    
+    /* 設定與結算遮罩 */
+    .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:1000; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+    .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 400px; text-align: left; }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:1000;">
-        <div style="background:white; padding:30px; border-radius:20px; width:90%; max-width:400px; text-align:left;">
-            <h2>🎮 遊戲設定</h2>
-            <label>遊戲題數：</label>
-            <select id="num-questions" style="width:100%; padding:10px; margin-bottom:15px;"><option value="5">5 題</option><option value="10">10 題</option><option value="all">全部</option></select>
-            <label>配對模式 (勾選兩個)：</label>
-            <div id="mode-checkboxes" style="margin:10px 0; background:#f8f9fa; padding:10px;">
-                <label><input type="checkbox" value="image"> 圖片</label><br>
-                <label><input type="checkbox" value="audio"> 聲音</label><br>
-                <label><input type="checkbox" value="english"> 英文</label><br>
-                <label><input type="checkbox" value="chinese"> 中文</label>
+    <div id="setup-screen" class="modal">
+        <div class="setup-box">
+            <h2 style="margin-top:0; text-align: center;">⚔️ 翻牌對戰設定 ⚔️</h2>
+            <label style="font-weight: bold;">遊戲題數 (共幾組)：</label>
+            <select id="num-questions" style="width:100%; padding:10px; margin: 10px 0 20px 0; border-radius: 8px;">
+                <option value="6">6 組 (共12張牌)</option>
+                <option value="8" selected>8 組 (共16張牌)</option>
+                <option value="10">10 組 (共20張牌)</option>
+                <option value="all">全部單字</option>
+            </select>
+            <label style="font-weight: bold;">配對模式 (勾選兩個)：</label>
+            <div id="mode-checkboxes" style="margin:10px 0 20px 0; background:#f8f9fa; padding:15px; border-radius: 8px; border: 1px solid #ddd;">
+                <label style="display:block; margin-bottom:8px;"><input type="checkbox" value="image" checked> 圖片</label>
+                <label style="display:block; margin-bottom:8px;"><input type="checkbox" value="english" checked> 英文</label>
+                <label style="display:block; margin-bottom:8px;"><input type="checkbox" value="audio"> 聲音</label>
+                <label style="display:block;"><input type="checkbox" value="chinese"> 中文</label>
             </div>
-            <button onclick="applySettingsAndStart()" style="width:100%; padding:15px; background:#26890C; color:white; border:none; border-radius:10px; cursor:pointer;">開始挑戰</button>
+            <button onclick="applySettingsAndStart()" style="width:100%; padding:15px; background:#26890C; color:white; border:none; border-radius:10px; font-size:18px; font-weight:bold; cursor:pointer;">開始對決！</button>
         </div>
     </div>
 
+    <!-- Header：加入計分板與回合提示 -->
     <div class="game-header">
-        <button class="back-btn" onclick="window.history.back()">
-            <span style="font-size: 16px;">⭠</span> 回單元列表
-        </button>
-        <h2 id="game-title" style="margin:0; font-size:20px;">Memory game</h2>
-        <div style="font-size:18px; font-weight:bold;">⏱️ <span id="timer">00:00</span> | ⭐ <span id="score">0.0</span></div>
+        <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
+        <div id="turn-display" class="turn-indicator turn-red">現在輪到: 🔴 紅隊</div>
+        <div class="score-board">
+            <span class="score-red">Red: <span id="score-red-text">0</span></span>
+            ⚔️
+            <span class="score-blue">Blue: <span id="score-blue-text">0</span></span>
+        </div>
+        <div style="font-size:18px; font-weight:bold; display: none;">⏱️ <span id="timer">00:00</span></div> <!-- 隱藏計時器，專注對戰 -->
     </div>
 
     <div id="memory-board"></div>
 
-    <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; flex-direction:column; justify-content:center; align-items:center; z-index:2000;">
-        <h1 style="color:#26890C;">🎉 Good job！</h1>
-        <div id="final-score" style="font-size:80px; font-weight:bold; color:#333; margin:20px 0;">0.0</div>
-        <button onclick="restartGame()" style="padding:15px 40px; font-size:22px; background:#26890C; color:white; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 10px rgba(38,137,12,0.3);">🔄 再玩一次</button>
+    <div id="game-over-screen" class="modal" style="display:none;">
+        <h1 id="winner-text" style="font-size: 60px; margin-bottom: 10px;"></h1>
+        <p id="win-reason" style="font-size: 24px; color: #555; margin-bottom: 30px;"></p>
+        <button onclick="location.reload()" style="padding:15px 40px; font-size:22px; background:#4facfe; color:white; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.2);">🔄 重新設定再戰</button>
     </div>
 
     <script>
         const vocabData = JSON.parse(sessionStorage.getItem('itip_current_vocab') || "[]");
-        let lastSettings = { count: 5, types: [] }, state = { hasFlipped: false, lockBoard: false, firstCard: null, secondCard: null, matched: 0 }, currentScore = 0, startTime, timerInterval;
+        if(vocabData.length === 0) { alert("找不到單字，請從目錄進入！"); window.history.back(); }
+
+        let lastSettings = { count: 8, types: [] };
+        let state = { hasFlipped: false, lockBoard: false, firstCard: null, secondCard: null, matched: 0 };
+        
+        // 雙人對戰狀態
+        let teamScores = { red: 0, blue: 0 };
+        let currentTeam = 'red'; 
+        let totalPairs = 0;
 
         function fixPath(url) {
             if (!url || url.startsWith('http')) return url;
             return (url.startsWith('../') || url.startsWith('/')) ? url : '../' + url;
+        }
+
+        function playSound(type) {
+            const url = type === 'correct' 
+                ? 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3' 
+                : 'https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3';
+            try { new Audio(url).play(); } catch(e) {}
         }
 
         function applySettingsAndStart() {
@@ -170,28 +177,40 @@
             runGame(lastSettings.count, lastSettings.types);
         }
 
-        function restartGame() {
-            document.getElementById('game-over-screen').style.display = 'none';
-            runGame(lastSettings.count, lastSettings.types);
+        // 切換回合 UI
+        function switchTurn() {
+            currentTeam = (currentTeam === 'red') ? 'blue' : 'red';
+            const turnDisplay = document.getElementById('turn-display');
+            if(currentTeam === 'red') {
+                turnDisplay.className = 'turn-indicator turn-red';
+                turnDisplay.innerText = '現在輪到: 🔴 紅隊';
+            } else {
+                turnDisplay.className = 'turn-indicator turn-blue';
+                turnDisplay.innerText = '現在輪到: 🔵 藍隊';
+            }
         }
 
         function runGame(count, types) {
-            clearInterval(timerInterval);
-            currentScore = 0; 
+            teamScores = { red: 0, blue: 0 };
+            currentTeam = 'red';
+            document.getElementById('score-red-text').innerText = '0';
+            document.getElementById('score-blue-text').innerText = '0';
             
+            document.getElementById('turn-display').className = 'turn-indicator turn-red';
+            document.getElementById('turn-display').innerText = '現在輪到: 🔴 紅隊';
+
             document.getElementById('memory-board').classList.remove('board-locked');
             state = { hasFlipped: false, lockBoard: false, firstCard: null, secondCard: null, matched: 0 };
-            document.getElementById('score').innerText = "0.0";
             
             let gameVocab = [...vocabData];
-            if (count !== 'all') gameVocab = gameVocab.sort(() => 0.5 - Math.random()).slice(0, parseInt(count));
+            if (count !== 'all') {
+                totalPairs = Math.min(parseInt(count), gameVocab.length);
+                gameVocab = gameVocab.sort(() => 0.5 - Math.random()).slice(0, totalPairs);
+            } else {
+                totalPairs = gameVocab.length;
+            }
+
             generateCards(gameVocab, types);
-            
-            startTime = Date.now();
-            timerInterval = setInterval(() => {
-                let s = Math.floor((Date.now() - startTime) / 1000);
-                document.getElementById('timer').innerText = String(Math.floor(s/60)).padStart(2,'0') + ":" + String(s%60).padStart(2,'0');
-            }, 1000);
         }
 
         function resetBoardState() {
@@ -200,6 +219,23 @@
             state.firstCard = null; 
             state.secondCard = null;
             document.getElementById('memory-board').classList.remove('board-locked');
+        }
+
+        function endGame() {
+            let winnerStr = "";
+            let reasonStr = `紅隊得 ${teamScores.red} 分 vs 藍隊得 ${teamScores.blue} 分`;
+
+            if (teamScores.red > teamScores.blue) {
+                winnerStr = "<span style='color:#E21B3C;'>🎉 紅隊獲勝！</span>";
+            } else if (teamScores.blue > teamScores.red) {
+                winnerStr = "<span style='color:#1cb0f6;'>🎉 藍隊獲勝！</span>";
+            } else {
+                winnerStr = "<span style='color:#888;'>🤝 雙方平手！</span>";
+            }
+
+            document.getElementById('winner-text').innerHTML = winnerStr;
+            document.getElementById('win-reason').innerText = reasonStr;
+            document.getElementById('game-over-screen').style.display = 'flex';
         }
 
         function generateCards(data, types) {
@@ -211,32 +247,28 @@
                 const getC = (t) => {
                     if (t === 'image') return v.image_URL ? `<img src="${fixPath(v.image_URL)}" class="card-img">` : "無圖";
                     if (t === 'audio') return "🔊";
-                    if (t === 'english') return v.english_image ? `<img src="${fixPath(v.english_image)}" class="card-img">` : v.english;
-                    return v.chinese;
+                    if (t === 'english') return v.english_image ? `<img src="${fixPath(v.english_image)}" class="card-img">` : `<span style="font-size: clamp(20px, 3vw, 40px);">${v.english}</span>`;
+                    return `<span style="font-size: clamp(20px, 3vw, 40px);">${v.chinese}</span>`;
                 };
-                cards.push({ id: index, html: getC(types[0]), audio: (types[0] === 'audio') ? fixPath(v.audio_URL) : null });
-                cards.push({ id: index, html: getC(types[1]), audio: (types[1] === 'audio') ? fixPath(v.audio_URL) : null });
+                cards.push({ id: index, html: getC(types[0]), audio: (types[0] === 'audio') ? fixPath(v.audio_URL) : null, word: v.english });
+                cards.push({ id: index, html: getC(types[1]), audio: (types[1] === 'audio') ? fixPath(v.audio_URL) : null, word: v.english });
             });
             cards.sort(() => Math.random() - 0.5);
             
             cards.forEach(c => {
                 const el = document.createElement('div'); el.className = 'memory-card'; el.dataset.id = c.id;
-                el.innerHTML = `<div class="memory-inner"><div class="memory-front">?</div><div class="memory-back">${c.html}</div></div>`;
+                el.innerHTML = `<div class="memory-inner"><div class="memory-front">ITIP</div><div class="memory-back">${c.html}</div></div>`;
                 
                 el.onclick = () => {
                     if (state.lockBoard || el === state.firstCard || el.classList.contains('star-mode')) return;
                     
                     el.classList.add('flip');
                     
-                    // 播放卡片本身的單字音效
+                    // 播放音效或發音
                     if (c.audio) {
-                        try {
-                            let audioPlayer = new Audio(c.audio);
-                            let playPromise = audioPlayer.play();
-                            if (playPromise !== undefined) {
-                                playPromise.catch(err => console.log('單字音效略過:', err));
-                            }
-                        } catch (e) {}
+                        try { new Audio(c.audio).play(); } catch (e) {
+                            let msg = new SpeechSynthesisUtterance(c.word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
+                        }
                     }
                     
                     if (!state.hasFlipped) { 
@@ -246,46 +278,34 @@
                     }
                     
                     state.secondCard = el;
-                    
-                    // 【強制鎖定盤面】
                     state.lockBoard = true; 
                     grid.classList.add('board-locked'); 
                     
-                    // 【延遲 1.2 秒判定】讓兩張牌都打開，且畫面停頓讓孩子看清楚
+                    // 延遲判定
                     setTimeout(() => {
                         if (state.firstCard.dataset.id === state.secondCard.dataset.id) {
-                            // 1. 配對成功：加上星星特效
+                            // 【配對成功】：加分、連莊不換人
                             state.firstCard.classList.add('star-mode'); 
                             state.secondCard.classList.add('star-mode');
+                            playSound('correct');
                             
-                            // 2. 播放成功音效 (這裡使用公開免費音效，妳可以改成自己的路徑)
-                            try {
-                                let successAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-                                successAudio.play().catch(e => console.log('過關音效略過:', e));
-                            } catch (e) {}
-                            
-                            // 3. 計分
-                            currentScore += 10 / data.length; 
-                            document.getElementById('score').innerText = (Math.round(currentScore*10)/10).toFixed(1);
+                            teamScores[currentTeam] += 1;
+                            document.getElementById(`score-${currentTeam}-text`).innerText = teamScores[currentTeam];
                             state.matched++;
                             
-                            // 4. 檢查是否全破
-                            if (state.matched === data.length) { 
-                                clearInterval(timerInterval); 
-                                setTimeout(() => {
-                                    document.getElementById('game-over-screen').style.display = 'flex'; 
-                                    document.getElementById('final-score').innerText = document.getElementById('score').innerText; 
-                                }, 800); // 稍微等星星動畫跑完再跳結算畫面
+                            if (state.matched === totalPairs) { 
+                                setTimeout(() => endGame(), 800); 
                             }
+                            // 答對不呼叫 switchTurn()，讓該隊繼續翻！
                         } else {
-                            // 配對失敗：將兩張卡片蓋回去
-                            if (state.firstCard) state.firstCard.classList.remove('flip'); 
-                            if (state.secondCard) state.secondCard.classList.remove('flip'); 
+                            // 【配對失敗】：蓋牌、換對手
+                            state.firstCard.classList.remove('flip'); 
+                            state.secondCard.classList.remove('flip'); 
+                            switchTurn(); // 換人囉！
                         }
                         
-                        // 判定結束，解除鎖定，準備下一次翻牌
                         resetBoardState();
-                    }, 1200); // 等待 1200 毫秒 (1.2秒)
+                    }, 1200); 
                 };
                 grid.appendChild(el);
             });
