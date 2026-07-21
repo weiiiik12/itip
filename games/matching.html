@@ -49,7 +49,14 @@
             font-size: 50px; z-index: 3; transition: left 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); display: flex; align-items: center; gap: 10px;
         }
-        .avatar span {
+        
+        /* 🔥 新增：單獨將車子 Emoji 水平翻轉，車頭朝右 */
+        .car-emoji {
+            display: inline-block;
+            transform: scaleX(-1);
+        }
+
+        .avatar span.team-name {
             font-size: 16px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 8px;
             border-radius: 10px; color: white;
         }
@@ -137,7 +144,7 @@
     </div>
 
     <div class="game-header">
-        <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
+        <button class="back-btn" onclick="window.history.back()">⭠ 返回目錄</button>
         <div style="font-size: 20px; font-weight: 900; color: #f1c40f; letter-spacing: 2px;">SPEED RELAY RACE</div>
         <div style="width: 80px;"></div>
     </div>
@@ -147,12 +154,16 @@
         <!-- 紅隊賽道 -->
         <div class="track">
             <div class="finish-line"></div>
-            <div class="avatar" id="avatar-red">🏎️<span style="color: #ff4757;">RED</span></div>
+            <div class="avatar" id="avatar-red">
+                <span class="car-emoji">🏎️</span><span class="team-name" style="color: #ff4757;">RED</span>
+            </div>
         </div>
         <!-- 藍隊賽道 -->
         <div class="track">
             <div class="finish-line"></div>
-            <div class="avatar" id="avatar-blue">🚙<span style="color: #1e90ff;">BLUE</span></div>
+            <div class="avatar" id="avatar-blue">
+                <span class="car-emoji">🚙</span><span class="team-name" style="color: #1e90ff;">BLUE</span>
+            </div>
         </div>
     </div>
     
