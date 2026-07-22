@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phonics Ninja - ITIP 2.0</title>
+    <style>
+        /* 全域設定 */ 
+        body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none;}
+
+        /* Header */
+        .game-header { background: white; padding: 15px 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .back-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; background-color: white; color: #555; border: 1px solid #e0e4e8; border-radius: 25px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+        .back-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); color: #4facfe; border-color: #4facfe; }
+
+        /* 狀態列 (分數、時間、發音) */
+        .status-bar { display: flex; align-items: center; gap: 20px; }
+        .time-board { font-size: 20px; font-weight: bold; color: #E21B3C; }
+        .score-board { font-size: 20px; font-weight: bold; color: #26890C; }
+        .play-btn { background: #4facfe; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        .play-btn:hover { transform: scale(1.05); background: #00f2fe; }
+        .play-btn:active { transform: scale(0.95); }
+
+        /* 遊戲主區塊 */
+        #game-container { position: relative; flex-grow: 1; background: linear-gradient(to top, #e0f4ff, #f0f4f8); overflow: hidden; cursor: crosshair; }
+
+        /* 單字神救援提示 (慢慢浮現) */
+        #word-hint {
+            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+            font-size: 60px; font-weight: 900; color: rgba(255,255,255,0.7);
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none; z-index: 5;
+            opacity: 0; transition: opacity 2s ease-in;
+        }
+
+        /* 氣球樣式 */
+        .balloon { position: absolute; bottom: -150px; display: flex; flex-direction: column; justify-content: center; align-items: center; user-select: none; transition: transform 0.1s; cursor: pointer; }
+        
+        @keyframes floatUp { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; } 50% { transform: translateY(-50vh) translateX(30px) rotate(5deg); } 100% { transform: translateY(-120vh) translateX(-30px) rotate(-5deg); opacity: 1; } }
+
+        .balloon.popped { animation: pop 0.2s ease-out forwards !important; pointer-events: none; }
+        @keyframes pop { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
+
+        .balloon.error { background: rgba(255,51,102,0.3); border-radius: 50%; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-15px) rotate(-15deg); } 75% { transform: translateX(15px) rotate(15deg); } }
+
+        .float-text { position: absolute; font-size: 30px; font-weight: bold; color: #26890C; pointer-events: none; animation: floatText 1s forwards; z-index: 100; text-shadow: 0 2px 4px rgba(255,255,255,0.8); }
+        .float-text.minus { color: #E21B3C; }
+        @keyframes floatText { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-60px) scale(1.5); } }
+
+        /* 設定彈窗 */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:1000; }
+        .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 450px; text-align: left; }
+        select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 設定畫面：讓老師決定要抓哪個部位 -->
+    <div id="setup-screen" class="modal">
+        <div class="setup-box">
+            <h2 style="margin-top:0; text-align:center;">🥷 字母忍者 (Phonics Ninja)</h2>
+            <p style="color:#555; text-align:center; margin-bottom:20px;">選擇你要訓練孩子們抓取單字中的哪一個部分！</p>
+            
+            <label style="display:block; font-weight:bold;">尋找目標：</label>
+            <select id="target-mode">
+                <option value="first_1">字首 1 個字母 (例: [c]at)</option>
+                <option value="first_2">字首 2 個字母 (複合子音, 例: [bl]ack)</option>
+                <option value="vowel_1">短母音 (找中間的字, 例: b[a]t)</option>
+                <option value="magic_e">長母音 Magic E (例: c[a_e]k -> a_e)</option>
+                <option value="last_1">字尾 1 個字母 (例: ca[t])</option>
+            </select>
+            
+            <button onclick="showWheel()" style="width:100%; padding:15px; background:#26890C; color:white; border:none; border-radius:10px; font-size:20px; font-weight:bold; cursor:pointer;">🎡 抽取今日主題</button>
+        </div>
+    </div>
+
+    <!-- 2. 主題轉盤畫面 -->
+    <div id="wheel-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; z-index:1001;">
+        <h2 id="wheel-title" style="color:white; margin-bottom: 30px; font-size: 28px;">轉動輪盤，決定挑戰場景！</h2>
+        <div style="position:relative; width: 300px; height: 300px;">
+            <div style="position:absolute; top:-15px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:20px solid transparent; border-right:20px solid transparent; border-top:40px solid #ff3366; z-index:10;"></div>
+            <div id="theme-wheel" style="width:100%; height:100%; border-radius:50%; border:8px solid white; box-sizing:border-box; background: conic-gradient(#ff7eb3 0deg 60deg, #fbc2eb 60deg 120deg, #2b1055 120deg 180deg, #4facfe 180deg 240deg, #a8e063 240deg 300deg, #1cb5e0 300deg 360deg); transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1); box-shadow: 0 0 25px rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; width: 50px; height: 50px; border-radius: 50%; z-index: 5;"></div>
+            </div>
+        </div>
+        <button id="spin-btn" onclick="spinWheel()" style="margin-top: 40px; padding: 15px 40px; background: #ff9933; color: white; border: none; border-radius: 30px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,153,51,0.4);">開始轉動！</button>
+    </div>
+
+    <!-- 3. 遊戲結束畫面 (時間到顯示) -->
+    <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); align-items:center; justify-content:center; flex-direction:column; z-index:2000;">
+        <h2 style="color:white; font-size:50px; margin-bottom:20px; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">⏳ 時間到！</h2>
+        <div style="background:white; padding:40px 60px; border-radius:20px; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <h3 style="font-size:24px; color:#555; margin:0;">本次得分</h3>
+            <p id="final-score" style="font-size:80px; font-weight:bold; color:#ff3366; margin:10px 0;">0</p>
+            <button onclick="location.reload()" style="padding:15px 30px; background:#4facfe; color:white; border:none; border-radius:10px; font-size:20px; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">再來一局</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="game-header">
+        <button class="back-btn" onclick="window.history.back()"><span>⭠</span> 回單元列表</button>
+        <div class="status-bar">
+            <!-- 加入計時器 -->
+            <div class="time-board">⏳ <span id="time">60</span>s</div>
+            <div class="score-board">⭐ 分數: <span id="score">0</span></div>
+            <button class="play-btn" onclick="playCurrentWordAudio()">🔊 再聽一次</button>
+        </div>
+    </div>
+
+    <!-- 遊戲區 -->
+    <div id="game-container">
+        <!-- 單字提示區塊 -->
+        <div id="word-hint"></div>
+        <div id="timer-bar-container" style="position:absolute; top:120px; left:50%; transform:translateX(-50%); width: 200px; height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; z-index: 20;">
+            <div id="timer-bar-fill" style="width: 100%; height: 100%; background: #FFD700; transition: width 1s linear;"></div>
+        </div>
+    </div>
+
+    <script>
+    let rawData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
+    if (rawData.length === 0) alert("找不到單字資料！");
+    let vocabData = rawData.filter(item => item.english && item.english.trim() !== "");
+    let vocabQueue = []; 
+    
+    const themes = [
+        { name: "氣球派對", props: ["🎈"], bg: "linear-gradient(to top, #e0f4ff, #f0f4f8)", emoji: "🎈" },
+        { name: "怪物獵人", props: ["👾", "👻", "👹"], bg: "linear-gradient(to bottom, #2b1055, #7597de)", emoji: "👾" },
+        { name: "宇宙保衛戰", props: ["🛸", "☄️"], bg: "radial-gradient(circle at center, #1b2735 0%, #090a0f 100%)", emoji: "🚀" },
+        { name: "水果忍者", props: ["🍉", "🍎", "🍊"], bg: "#fdfbfb", emoji: "🍉" },
+        { name: "抓蟲大師", props: ["🦋", "🐞", "🐛"], bg: "linear-gradient(to bottom, #a8e063, #56ab2f)", emoji: "🦋" },
+        { name: "海底世界", props: ["🐠", "🐙", "🦀"], bg: "linear-gradient(to bottom, #1cb5e0, #000851)", emoji: "🐠" }
+    ];
+
+    let activeTheme = themes[0], currentRotation = 0;
+    let score = 0, timeLeft = 60, wordTimeLeft = 10;
+    let currentWordObj = null, targetStr = ""; 
+    let gameMode = 'first_1'; // 預設模式
+    let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
+
+    const container = document.getElementById('game-container');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const wordHintEl = document.getElementById('word-hint');
+
+    // 常用複合子音/母音干擾項
+    const digraphs = ["ch", "sh", "th", "ph", "wh", "bl", "cl", "fl", "gl", "pl", "sl", "br", "cr", "dr", "fr", "gr", "pr", "tr"];
+    const vowels = ["a", "e", "i", "o", "u"];
+    const magicEs = ["a_e", "i_e", "o_e", "u_e", "e_e"];
+
+    function showWheel() {
+        gameMode = document.getElementById('target-mode').value;
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('wheel-screen').style.display = 'flex';
+    }
+
+    function spinWheel() {
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); 
+        const spinBtn = document.getElementById('spin-btn');
+        spinBtn.disabled = true; 
+        currentRotation += (1800 + Math.floor(Math.random() * 360));
+        document.getElementById('theme-wheel').style.transform = `rotate(${currentRotation}deg)`;
+
+        setTimeout(() => {
+            const pointerDegree = (360 - (currentRotation % 360)) % 360; 
+            activeTheme = themes[Math.floor(pointerDegree / 60)];
+            container.style.background = activeTheme.bg;
+            document.getElementById('wheel-screen').style.display = 'none';
+            startGameLogic();
+        }, 3000); 
+    }
+
+    function startGameLogic() {
+        score = 0; scoreEl.innerText = score;
+        timeLeft = 60; timeEl.innerText = timeLeft;
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timeEl.innerText = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+        nextRound();
+    }
+
+    function endGame() {
+        clearInterval(gameInterval); clearInterval(timerInterval); clearInterval(wordTimerInterval);
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('game-over-screen').style.display = 'flex';
+    }
+
+    // 核心大腦：分析單字並抓出目標字串
+    function extractTarget(word, mode) {
+        let w = word.toLowerCase();
+        if (mode === 'first_1') return w.charAt(0);
+        if (mode === 'first_2') return w.length >= 2 ? w.substring(0, 2) : w;
+        if (mode === 'last_1') return w.charAt(w.length - 1);
+        if (mode === 'vowel_1') {
+            // 找第一個出現的母音
+            for (let i = 0; i < w.length; i++) {
+                if (vowels.includes(w[i])) return w[i];
+            }
+            return "a"; // 預防萬一
+        }
+        if (mode === 'magic_e') {
+            // 找找看有沒有 [母音]+[子音]+e 的結構 (例如 cake -> a_e)
+            let match = w.match(/([aeiou])[^aeiou]e/);
+            if (match) return match[1] + "_e";
+            // 如果沒找到，退而求其次找第一個母音加上 _e
+            for (let i = 0; i < w.length; i++) {
+                if (vowels.includes(w[i])) return w[i] + "_e";
+            }
+            return "a_e"; 
+        }
+        return w.charAt(0);
+    }
+
+    function nextRound() {
+        clearInterval(wordTimerInterval);
+        wordTimeLeft = 10;
+        
+        const timerBar = document.getElementById('timer-bar-fill');
+        if (timerBar) timerBar.style.width = '100%'; 
+
+        if (vocabQueue.length === 0) vocabQueue = [...vocabData].sort(() => Math.random() - 0.5);
+        currentWordObj = vocabQueue.pop();
+        
+        // 透過分析引擎決定目標字串
+        targetStr = extractTarget(currentWordObj.english, gameMode);
+        
+        // 畫面上的提示會加上括號標示 (例如 [bl]ack)
+        let displayHint = currentWordObj.english;
+        if(gameMode === 'first_1') displayHint = `[${currentWordObj.english.substring(0,1)}]${currentWordObj.english.substring(1)}`;
+        if(gameMode === 'first_2' && currentWordObj.english.length>=2) displayHint = `[${currentWordObj.english.substring(0,2)}]${currentWordObj.english.substring(2)}`;
+        // magic_e 等比較難精確標示，就直接顯示單字
+        
+        wordHintEl.style.opacity = '0';
+        wordHintEl.innerText = displayHint;
+        clearTimeout(hintTimeout);
+        hintTimeout = setTimeout(() => { wordHintEl.style.opacity = '1'; }, 3000);
+
+        playCurrentWordAudio();
+        
+        wordTimerInterval = setInterval(() => {
+            wordTimeLeft--;
+            if (timerBar) timerBar.style.width = `${(wordTimeLeft / 10) * 100}%`;
+            if (wordTimeLeft <= 0) nextRound();
+        }, 1000);
+
+        clearInterval(gameInterval);
+        gameInterval = setInterval(spawnBalloon, 800); 
+    }
+
+    function playCurrentWordAudio() {
+        if (!currentWordObj) return;
+        if (currentWordObj.audio_URL) {
+            let audio = new Audio(currentWordObj.audio_URL);
+            audio.play().catch(e => speakWord(currentWordObj.english));
+        } else {
+            speakWord(currentWordObj.english);
+        }
+    }
+
+    function speakWord(word) {
+        let msg = new SpeechSynthesisUtterance(word);
+        msg.lang = 'en-US'; msg.rate = 0.85;
+        window.speechSynthesis.speak(msg);
+    }
+
+    // 根據模式生成干擾選項
+    function getRandomTarget(forceTarget) {
+        if (forceTarget) return targetStr;
+        
+        if (gameMode === 'first_1' || gameMode === 'last_1') {
+            const alphabet = "abcdefghijklmnopqrstuvwxyz";
+            return alphabet[Math.floor(Math.random() * alphabet.length)];
+        }
+        if (gameMode === 'first_2') {
+            return digraphs[Math.floor(Math.random() * digraphs.length)];
+        }
+        if (gameMode === 'vowel_1') {
+            return vowels[Math.floor(Math.random() * vowels.length)];
+        }
+        if (gameMode === 'magic_e') {
+            return magicEs[Math.floor(Math.random() * magicEs.length)];
+        }
+        return "a";
+    }
+
+    function spawnBalloon() {
+        const balloon = document.createElement('div');
+        balloon.className = 'balloon';
+        const stringToShow = getRandomTarget(Math.random() < 0.3);
+        const propEmoji = activeTheme.props[Math.floor(Math.random() * activeTheme.props.length)];
+        
+        // 字串比較長時稍微縮小字體
+        let fontSize = stringToShow.length > 1 ? "40px" : "60px";
+
+        balloon.innerHTML = `
+            <span style="font-size:80px; line-height: 1;">${propEmoji}</span>
+            <span style="font-size:${fontSize}; font-weight:900; text-shadow: 0 3px 6px rgba(0,0,0,0.8); color:white; margin-top: -15px;">${stringToShow}</span>
+        `;
+        balloon.style.left = `${10 + Math.random() * 80}%`;
+        balloon.style.animation = `floatUp ${6000 + Math.random() * 4000}ms linear forwards`;
+        balloon.addEventListener('pointerdown', (e) => {
+            if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
+            if (stringToShow.toLowerCase() === targetStr.toLowerCase()) {
+                balloon.classList.add('popped');
+                updateScore(5, e.clientX, e.clientY);
+                playEffectSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+            } else {
+                balloon.style.animation = 'shake 0.4s ease';
+                balloon.classList.add('error');
+                updateScore(-2, e.clientX, e.clientY);
+                playEffectSound('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3');
+            }
+        });
+        balloon.addEventListener('animationend', (e) => { if (e.animationName === 'floatUp') balloon.remove(); });
+        container.appendChild(balloon);
+    }
+
+    function updateScore(points, x, y) {
+        score += points; scoreEl.innerText = score;
+        const floatText = document.createElement('div');
+        floatText.className = 'float-text ' + (points < 0 ? 'minus' : '');
+        floatText.innerText = points > 0 ? `+${points}` : points;
+        floatText.style.left = `${x}px`; floatText.style.top = `${y - 30}px`;
+        document.body.appendChild(floatText);
+        setTimeout(() => floatText.remove(), 1000);
+    }
+
+    function playEffectSound(url) {
+        try { new Audio(url).play(); } catch (e) {}
+    }
+</script>
+</body>
+</html>
