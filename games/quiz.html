@@ -36,22 +36,32 @@
 
         /* 題目區塊 */
         .question-box {
-            height: 35%; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            height: 35%; display: flex; justify-content: center; align-items: center;
             background: white; border-radius: 20px; box-shadow: 0 8px 15px rgba(0,0,0,0.1);
             font-size: 50px; font-weight: 900; text-align: center; margin-bottom: 20px;
             position: relative; padding: 10px; word-break: break-word;
-            overflow: hidden; /* 新增：終極防線，防止內容溢出 */
         }
         
-        /* 新增：強制內容容器佔滿整個框框，讓裡面的圖片有縮放基準 */
+        /* 💡 終極解法：將內容層絕對定位，徹底切斷圖片撐破父元素的可能 */
         #red-q-content, #blue-q-content {
-            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            position: absolute;
+            top: 10px; bottom: 10px; left: 10px; right: 10px; /* 貼齊外框並留出 padding 空間 */
+            display: flex; justify-content: center; align-items: center;
         }
 
         .question-box img { 
-            max-height: 95%; max-width: 95%; /* 稍微調大一點，讓圖片更飽滿 */
+            max-height: 100%; max-width: 100%; 
             object-fit: contain; border-radius: 10px; 
         }
+
+        /* 回饋動畫 (⭕ 與 ❌) */
+        .feedback-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 150px; opacity: 0; pointer-events: none; z-index: 5;
+            transition: opacity 0.2s, transform 0.2s; transform: scale(0.5);
+        }
+        .show-feedback { opacity: 1; transform: scale(1); }
 
         /* 四選一按鈕網格 */
         .options-grid {
@@ -63,9 +73,12 @@
             font-size: clamp(20px, 3vw, 36px); font-weight: bold; cursor: pointer;
             box-shadow: 0 6px 0 #ccc; display: flex; justify-content: center; align-items: center;
             transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s; text-align: center; padding: 10px;
+            position: relative; overflow: hidden; /* 防呆：下方選項按鈕也加上隱藏溢出 */
         }
-        .option-btn img { max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; }
-        .option-btn:active { transform: translateY(6px); box-shadow: 0 0 0 #ccc; }
+        .option-btn img { 
+            max-width: 100%; max-height: 100%; 
+            object-fit: contain; pointer-events: none; 
+        }
         
         /* 鎖定狀態 */
         .team-zone.locked { opacity: 0.6; pointer-events: none; } 
