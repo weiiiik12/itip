@@ -15,8 +15,14 @@
 
         /* 狀態列 */
         .status-bar { display: flex; align-items: center; gap: 20px; }
-        .time-board { font-size: 22px; font-weight: bold; color: #E21B3C; background: #ffebee; padding: 5px 15px; border-radius: 15px;}
-        .score-board { font-size: 22px; font-weight: bold; color: #26890C; background: #e8f5e9; padding: 5px 15px; border-radius: 15px;}
+        .time-board { font-size: 22px; font-weight: bold; color: #333; background: #f0f4f8; padding: 5px 15px; border-radius: 15px; border: 2px solid #ccc;}
+        
+        /* 計分板 (支援單人與雙人) */
+        .score-board-single { font-size: 22px; font-weight: bold; color: #26890C; background: #e8f5e9; padding: 5px 15px; border-radius: 15px; display: none;}
+        .score-board-vs { font-size: 22px; font-weight: bold; display: none; align-items: center; gap: 15px; background: #f8f9fa; padding: 5px 20px; border-radius: 15px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
+        .score-red { color: #E21B3C; }
+        .score-blue { color: #1cb0f6; }
+
         .play-btn { background: #4facfe; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         .play-btn:hover { transform: scale(1.05); background: #00f2fe; }
         .play-btn:active { transform: scale(0.95); }
@@ -24,21 +30,28 @@
         /* 遊戲主區塊 */
         #game-container { position: relative; flex-grow: 1; background: linear-gradient(to top, #e0f4ff, #f0f4f8); overflow: hidden; cursor: crosshair; }
 
+        /* 🆚 雙人對戰分隔線 */
+        #vs-divider {
+            display: none; position: absolute; left: 50%; top: 0; bottom: 0; width: 6px;
+            background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0.8) 15px, transparent 15px, transparent 30px);
+            transform: translateX(-50%); z-index: 1; box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
         /* 🖼️ 單字圖片提示區塊 */
         #word-hint {
-            position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
             pointer-events: none; z-index: 5;
             opacity: 0; transition: opacity 1.5s ease-in; 
             display: flex; flex-direction: column; align-items: center;
         }
         #word-hint img {
-            max-height: 160px; max-width: 250px; object-fit: contain;
+            max-height: 150px; max-width: 250px; object-fit: contain;
             border-radius: 20px; border: 6px solid white;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2); background: white;
         }
 
         /* 氣球樣式 */
-        .balloon { position: absolute; bottom: -150px; display: flex; flex-direction: column; justify-content: center; align-items: center; user-select: none; transition: transform 0.1s; cursor: pointer; }
+        .balloon { position: absolute; bottom: -150px; display: flex; flex-direction: column; justify-content: center; align-items: center; user-select: none; transition: transform 0.1s; cursor: pointer; z-index: 10; }
         
         @keyframes floatUp { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; } 50% { transform: translateY(-50vh) translateX(30px) rotate(5deg); } 100% { transform: translateY(-120vh) translateX(-30px) rotate(-5deg); opacity: 1; } }
 
@@ -48,8 +61,11 @@
         .balloon.error { filter: grayscale(50%) hue-rotate(300deg); }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-15px) rotate(-15deg); } 75% { transform: translateX(15px) rotate(15deg); } }
 
-        .float-text { position: absolute; font-size: 35px; font-weight: 900; color: #26890C; pointer-events: none; animation: floatText 0.8s forwards; z-index: 100; text-shadow: 0 3px 0 white, 0 -3px 0 white, 3px 0 0 white, -3px 0 0 white; }
-        .float-text.minus { color: #E21B3C; }
+        .float-text { position: absolute; font-size: 40px; font-weight: 900; pointer-events: none; animation: floatText 0.8s forwards; z-index: 100; text-shadow: 0 3px 0 white, 0 -3px 0 white, 3px 0 0 white, -3px 0 0 white; }
+        .float-text.plus-red { color: #E21B3C; }
+        .float-text.plus-blue { color: #1cb0f6; }
+        .float-text.plus-single { color: #26890C; }
+        .float-text.minus { color: #555; }
         @keyframes floatText { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.5); } }
 
         /* 設定彈窗 */
@@ -60,11 +76,18 @@
 </head>
 <body>
 
+    <!-- 1. 設定畫面 -->
     <div id="setup-screen" class="modal">
         <div class="setup-box">
             <h2 style="margin-top:0; text-align:center; font-size: 32px;">🥷 字母忍者 (Phonics)</h2>
-            <p style="color:#555; text-align:center; margin-bottom:20px; font-size: 18px;">請根據孩子目前的學習進度，選擇斬擊難度！</p>
+            <p style="color:#555; text-align:center; margin-bottom:20px; font-size: 18px;">請選擇對戰模式與斬擊難度！</p>
             
+            <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">⚔️ 遊戲模式：</label>
+            <select id="player-mode">
+                <option value="vs" selected>雙人對戰 (紅隊 vs 藍隊)</option>
+                <option value="single">單人訓練 (獨自挑戰)</option>
+            </select>
+
             <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">📚 課程難度 (向下包容)：</label>
             <select id="book-level">
                 <option value="1">Book 1 (只找開頭第一個字母)</option>
@@ -77,6 +100,7 @@
         </div>
     </div>
 
+    <!-- 2. 主題轉盤畫面 -->
     <div id="wheel-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; z-index:1001;">
         <h2 id="wheel-title" style="color:white; margin-bottom: 40px; font-size: 36px; text-shadow: 0 0 15px rgba(255,255,255,0.5);">決定挑戰場景！</h2>
         <div style="position:relative; width: 350px; height: 350px;">
@@ -88,28 +112,46 @@
         <button id="spin-btn" onclick="spinWheel()" style="margin-top: 50px; padding: 18px 50px; background: #ff9933; color: white; border: none; border-radius: 40px; font-size: 26px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 20px rgba(255,153,51,0.5);">開始轉動！</button>
     </div>
 
+    <!-- 3. 遊戲結束畫面 -->
     <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; z-index:2000;">
         <h2 style="color:white; font-size:60px; margin-bottom:20px; text-shadow: 0 5px 15px rgba(0,0,0,0.8);">⏳ 時間到！</h2>
         <div style="background:white; padding:50px 80px; border-radius:30px; text-align:center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
-            <h3 style="font-size:28px; color:#555; margin:0;">忍者積分</h3>
-            <p id="final-score" style="font-size:100px; font-weight:900; color:#ff3366; margin:10px 0;">0</p>
+            <h3 id="winner-title" style="font-size:32px; margin:0; margin-bottom: 20px;"></h3>
+            <div id="final-score-display" style="font-size:80px; font-weight:900; margin:10px 0;">0</div>
             <button onclick="location.reload()" style="padding:18px 40px; background:#4facfe; color:white; border:none; border-radius:15px; font-size:24px; font-weight:bold; cursor:pointer; margin-top:20px; width:100%; box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);">🔄 再來一局</button>
         </div>
     </div>
 
+    <!-- Header -->
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()"><span>⭠</span> 回單元列表</button>
         <div class="status-bar">
             <div class="time-board">⏳ <span id="time">60</span>s</div>
-            <div class="score-board">⭐ 積分: <span id="score">0</span></div>
+            
+            <!-- 單人計分板 -->
+            <div id="score-panel-single" class="score-board-single">
+                ⭐ 積分: <span id="score-single">0</span>
+            </div>
+            
+            <!-- 雙人計分板 -->
+            <div id="score-panel-vs" class="score-board-vs">
+                <span class="score-red">Red: <span id="score-red-text">0</span></span>
+                ⚔️
+                <span class="score-blue">Blue: <span id="score-blue-text">0</span></span>
+            </div>
+
             <button class="play-btn" onclick="playCurrentWordAudio()">🔊 重新聽發音</button>
         </div>
     </div>
 
+    <!-- 遊戲區 -->
     <div id="game-container">
+        <!-- 雙人模式分隔線 -->
+        <div id="vs-divider"></div>
+
         <div id="word-hint"></div>
-        <div id="timer-bar-container" style="position:absolute; top:220px; left:50%; transform:translateX(-50%); width: 250px; height: 12px; background: rgba(0,0,0,0.1); border-radius: 6px; overflow: hidden; z-index: 20; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
-            <div id="timer-bar-fill" style="width: 100%; height: 100%; background: #26890C; transition: width 1s linear;"></div>
+        <div id="timer-bar-container" style="position:absolute; top:210px; left:50%; transform:translateX(-50%); width: 250px; height: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; overflow: hidden; z-index: 20; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);">
+            <div id="timer-bar-fill" style="width: 100%; height: 100%; background: #FFD700; transition: width 1s linear;"></div>
         </div>
     </div>
 
@@ -129,31 +171,33 @@
     ];
 
     let activeTheme = themes[0], currentRotation = 0;
-    let score = 0, timeLeft = 60, wordTimeLeft = 10;
+    let scores = { single: 0, red: 0, blue: 0 };
+    let timeLeft = 60, wordTimeLeft = 10;
     let currentWordObj = null; 
     let validTargets = []; 
-    let gameLevel = '4'; 
+    
+    let bookLevel = '4'; 
+    let playerMode = 'vs'; // 'single' 或 'vs'
+
     let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
 
     const container = document.getElementById('game-container');
-    const scoreEl = document.getElementById('score');
     const timeEl = document.getElementById('time');
     const wordHintEl = document.getElementById('word-hint');
 
-    // 🌟 發音家族字典：用來製造「高階認知混淆」
+    // 🌟 發音家族字典 (維持高階混淆機制)
     const phonicsFamilies = [
-        ['bl', 'cl', 'fl', 'gl', 'pl', 'sl'], // L-blends
-        ['br', 'cr', 'dr', 'fr', 'gr', 'pr', 'tr'], // R-blends
-        ['sm', 'sn', 'sp', 'st', 'sw', 'sc', 'sk'], // S-blends
-        ['ch', 'sh', 'th', 'wh', 'ph', 'ck', 'ng', 'nk', 'tch', 'dge'], // 常見複合子音
-        ['a', 'e', 'i', 'o', 'u'], // 短母音
-        ['a_e', 'i_e', 'o_e', 'u_e', 'e_e'], // Magic E
-        ['ai', 'ay', 'ee', 'ea', 'ie', 'oa', 'oe', 'ue', 'oo', 'ou', 'ow', 'oi', 'oy', 'aw', 'au', 'ew'], // Vowel teams
-        ['ar', 'er', 'ir', 'or', 'ur'], // R-controlled
-        ['b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','y','z'] // 單一子音
+        ['bl', 'cl', 'fl', 'gl', 'pl', 'sl'], 
+        ['br', 'cr', 'dr', 'fr', 'gr', 'pr', 'tr'], 
+        ['sm', 'sn', 'sp', 'st', 'sw', 'sc', 'sk'], 
+        ['ch', 'sh', 'th', 'wh', 'ph', 'ck', 'ng', 'nk', 'tch', 'dge'], 
+        ['a', 'e', 'i', 'o', 'u'], 
+        ['a_e', 'i_e', 'o_e', 'u_e', 'e_e'], 
+        ['ai', 'ay', 'ee', 'ea', 'ie', 'oa', 'oe', 'ue', 'oo', 'ou', 'ow', 'oi', 'oy', 'aw', 'au', 'ew'], 
+        ['ar', 'er', 'ir', 'or', 'ur'], 
+        ['b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','y','z'] 
     ];
     
-    // 預設後備干擾庫
     const distractorsL1 = "abcdefghijklmnopqrstuvwxyz".split('');
     const distractorsL3 = [...distractorsL1, "a_e", "i_e", "o_e", "u_e"];
     const distractorsL4 = [...distractorsL3, "ch", "sh", "th", "wh", "ph", "ck", "ng", "bl", "cl", "fl", "gl", "pl", "sl", "br", "cr", "dr", "fr", "gr", "pr", "tr", "ai", "ee", "ea", "oa", "oo", "ou", "ow", "ar", "er", "ir", "or", "ur"];
@@ -161,7 +205,8 @@
     function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
 
     function showWheel() {
-        gameLevel = document.getElementById('book-level').value;
+        bookLevel = document.getElementById('book-level').value;
+        playerMode = document.getElementById('player-mode').value;
         document.getElementById('setup-screen').style.display = 'none';
         document.getElementById('wheel-screen').style.display = 'flex';
     }
@@ -183,7 +228,19 @@
     }
 
     function startGameLogic() {
-        score = 0; scoreEl.innerText = score;
+        scores = { single: 0, red: 0, blue: 0 };
+        
+        // 根據模式切換 UI
+        if (playerMode === 'vs') {
+            document.getElementById('score-panel-vs').style.display = 'flex';
+            document.getElementById('score-panel-single').style.display = 'none';
+            document.getElementById('vs-divider').style.display = 'block';
+        } else {
+            document.getElementById('score-panel-vs').style.display = 'none';
+            document.getElementById('score-panel-single').style.display = 'block';
+            document.getElementById('vs-divider').style.display = 'none';
+        }
+
         timeLeft = 60; timeEl.innerText = timeLeft;
         timerInterval = setInterval(() => {
             timeLeft--;
@@ -195,7 +252,27 @@
 
     function endGame() {
         clearInterval(gameInterval); clearInterval(timerInterval); clearInterval(wordTimerInterval);
-        document.getElementById('final-score').innerText = score;
+        
+        const titleEl = document.getElementById('winner-title');
+        const scoreDisplayEl = document.getElementById('final-score-display');
+        
+        if (playerMode === 'vs') {
+            if (scores.red > scores.blue) {
+                titleEl.innerHTML = "<span style='color:#E21B3C;'>🎉 紅隊獲勝！</span>";
+                scoreDisplayEl.innerHTML = `<span style='color:#E21B3C;'>${scores.red}</span> <span style='font-size:40px; color:#555;'>vs</span> <span style='color:#1cb0f6;'>${scores.blue}</span>`;
+            } else if (scores.blue > scores.red) {
+                titleEl.innerHTML = "<span style='color:#1cb0f6;'>🎉 藍隊獲勝！</span>";
+                scoreDisplayEl.innerHTML = `<span style='color:#E21B3C;'>${scores.red}</span> <span style='font-size:40px; color:#555;'>vs</span> <span style='color:#1cb0f6;'>${scores.blue}</span>`;
+            } else {
+                titleEl.innerHTML = "<span style='color:#888;'>🤝 雙方平手！</span>";
+                scoreDisplayEl.innerHTML = `<span style='color:#E21B3C;'>${scores.red}</span> <span style='font-size:40px; color:#555;'>vs</span> <span style='color:#1cb0f6;'>${scores.blue}</span>`;
+            }
+        } else {
+            titleEl.innerText = "最終積分";
+            titleEl.style.color = "#555";
+            scoreDisplayEl.innerHTML = `<span style='color:#26890C;'>${scores.single}</span>`;
+        }
+        
         document.getElementById('game-over-screen').style.display = 'flex';
     }
 
@@ -231,12 +308,12 @@
         wordTimeLeft = 10;
         
         const timerBar = document.getElementById('timer-bar-fill');
-        if (timerBar) { timerBar.style.width = '100%'; timerBar.style.background = '#26890C'; }
+        if (timerBar) { timerBar.style.width = '100%'; timerBar.style.background = '#FFD700'; }
 
         if (vocabQueue.length === 0) vocabQueue = [...vocabData].sort(() => Math.random() - 0.5);
         currentWordObj = vocabQueue.pop();
         
-        validTargets = getValidTargets(currentWordObj.english, gameLevel);
+        validTargets = getValidTargets(currentWordObj.english, bookLevel);
         
         wordHintEl.style.opacity = '0';
         if (currentWordObj.image_URL) {
@@ -260,7 +337,10 @@
         }, 1000);
 
         clearInterval(gameInterval);
-        gameInterval = setInterval(spawnBalloon, 700); 
+        
+        // 根據模式決定生成氣球的頻率
+        let spawnRate = (playerMode === 'vs') ? 400 : 700; // 雙人模式氣球生更快
+        gameInterval = setInterval(spawnBalloonsController, spawnRate); 
     }
 
     function playCurrentWordAudio() {
@@ -279,74 +359,76 @@
         window.speechSynthesis.speak(msg);
     }
 
-    // 🌟 智慧型干擾項生成 (Smart Distractor Generator)
     function getRandomTargetText(forceCorrect) {
         if (forceCorrect && validTargets.length > 0) {
-            // 生成正確答案
             return validTargets[Math.floor(Math.random() * validTargets.length)];
         }
         
-        // 嘗試生成「同家族的高階混淆干擾項」
         if (validTargets.length > 0) {
-            // 從合法的拆解中隨機挑一個當作「混淆基準」 (例如選中 bl)
             let baseTarget = validTargets[Math.floor(Math.random() * validTargets.length)];
-            
-            // 找出這個基準屬於字典裡的哪個家族
             let matchingFamily = phonicsFamilies.find(family => family.includes(baseTarget));
-            
             if (matchingFamily) {
-                // 從同一個家族裡挑選，並排除掉目前單字裡的正確答案 (例如把 bl 濾掉，剩下 cl, fl, gl...)
                 let availableDistractors = matchingFamily.filter(item => !validTargets.includes(item));
-                
-                // 如果家族裡還有可用的混淆項，就直接回傳！
                 if (availableDistractors.length > 0) {
                     return availableDistractors[Math.floor(Math.random() * availableDistractors.length)];
                 }
             }
         }
         
-        // 如果找不到家族，或者那個家族的選項被用光了，就退回原本的難度大字庫
         let pool = distractorsL1;
-        if (gameLevel === '3') pool = distractorsL3;
-        if (gameLevel === '4') pool = distractorsL4;
+        if (bookLevel === '3') pool = distractorsL3;
+        if (bookLevel === '4') pool = distractorsL4;
         
         let distractor = pool[Math.floor(Math.random() * pool.length)];
-        // 確保隨機抽出的真的不是正確答案
         while(validTargets.includes(distractor)) {
             distractor = pool[Math.floor(Math.random() * pool.length)];
         }
         return distractor;
     }
 
-    function spawnBalloon() {
+    // 控制器：決定產生單顆還是雙顆氣球
+    function spawnBalloonsController() {
+        if (playerMode === 'vs') {
+            // 隨機決定這次生在左邊還是右邊，確保兩邊數量大致平均
+            Math.random() > 0.5 ? createBalloon('red') : createBalloon('blue');
+        } else {
+            createBalloon('single');
+        }
+    }
+
+    function createBalloon(team) {
         const balloon = document.createElement('div');
         balloon.className = 'balloon';
         
         const isCorrectTarget = Math.random() < 0.40; 
-        // 透過新的智慧引擎取得氣球上的文字！
         const stringToShow = getRandomTargetText(isCorrectTarget);
         const propEmoji = activeTheme.props[Math.floor(Math.random() * activeTheme.props.length)];
-        
         let fontSize = stringToShow.length > 1 ? "40px" : "60px";
 
         balloon.innerHTML = `
             <span style="font-size:90px; line-height: 1; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3));">${propEmoji}</span>
             <span style="font-size:${fontSize}; font-weight:900; text-shadow: 0 4px 8px rgba(0,0,0,0.8); color:white; margin-top: -20px; z-index:2;">${stringToShow}</span>
         `;
-        balloon.style.left = `${10 + Math.random() * 80}%`;
-        balloon.style.animation = `floatUp ${5000 + Math.random() * 4000}ms linear forwards`;
+        
+        // 根據隊伍分配 X 軸範圍
+        let minX = 10, maxX = 80; // single
+        if (team === 'red') { minX = 5; maxX = 40; }
+        if (team === 'blue') { minX = 55; maxX = 90; }
+        
+        balloon.style.left = `${minX + Math.random() * (maxX - minX)}%`;
+        balloon.style.animation = `floatUp ${4000 + Math.random() * 4000}ms linear forwards`; // 雙人稍微飛快一點
         
         balloon.addEventListener('pointerdown', (e) => {
             if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
             
             if (validTargets.includes(stringToShow.toLowerCase())) {
                 balloon.classList.add('popped');
-                updateScore(5, e.clientX, e.clientY);
+                updateScore(5, e.clientX, e.clientY, team);
                 playEffectSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
             } else {
                 balloon.style.animation = 'shake 0.4s ease';
                 balloon.classList.add('error');
-                updateScore(-2, e.clientX, e.clientY);
+                updateScore(-2, e.clientX, e.clientY, team);
                 playEffectSound('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3');
             }
         });
@@ -355,13 +437,28 @@
         container.appendChild(balloon);
     }
 
-    function updateScore(points, x, y) {
-        score += points; 
-        if (score < 0) score = 0; 
-        scoreEl.innerText = score;
+    function updateScore(points, x, y, team) {
+        scores[team] += points; 
+        if (scores[team] < 0) scores[team] = 0; 
         
+        // 更新對應的計分板
+        if (playerMode === 'vs') {
+            if (team === 'red') document.getElementById('score-red-text').innerText = scores.red;
+            if (team === 'blue') document.getElementById('score-blue-text').innerText = scores.blue;
+        } else {
+            document.getElementById('score-single').innerText = scores.single;
+        }
+        
+        // 飄動的分數特效
         const floatText = document.createElement('div');
-        floatText.className = 'float-text ' + (points < 0 ? 'minus' : '');
+        let textClass = 'minus';
+        if (points > 0) {
+            if (team === 'red') textClass = 'plus-red';
+            else if (team === 'blue') textClass = 'plus-blue';
+            else textClass = 'plus-single';
+        }
+        
+        floatText.className = `float-text ${textClass}`;
         floatText.innerText = points > 0 ? `+${points}` : points;
         floatText.style.left = `${x - 20}px`; floatText.style.top = `${y - 40}px`;
         document.body.appendChild(floatText);
