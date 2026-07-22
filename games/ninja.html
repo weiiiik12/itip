@@ -13,10 +13,10 @@
         .back-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; background-color: white; color: #555; border: 1px solid #e0e4e8; border-radius: 25px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s ease; }
         .back-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); color: #4facfe; border-color: #4facfe; }
 
-        /* 狀態列 (分數、時間、發音) */
+        /* 狀態列 */
         .status-bar { display: flex; align-items: center; gap: 20px; }
-        .time-board { font-size: 20px; font-weight: bold; color: #E21B3C; }
-        .score-board { font-size: 20px; font-weight: bold; color: #26890C; }
+        .time-board { font-size: 22px; font-weight: bold; color: #E21B3C; background: #ffebee; padding: 5px 15px; border-radius: 15px;}
+        .score-board { font-size: 22px; font-weight: bold; color: #26890C; background: #e8f5e9; padding: 5px 15px; border-radius: 15px;}
         .play-btn { background: #4facfe; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         .play-btn:hover { transform: scale(1.05); background: #00f2fe; }
         .play-btn:active { transform: scale(0.95); }
@@ -24,13 +24,17 @@
         /* 遊戲主區塊 */
         #game-container { position: relative; flex-grow: 1; background: linear-gradient(to top, #e0f4ff, #f0f4f8); overflow: hidden; cursor: crosshair; }
 
-        /* 單字神救援提示 (慢慢浮現) */
+        /* 🖼️ 單字圖片提示區塊 */
         #word-hint {
-            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
-            font-size: 60px; font-weight: 900; color: rgba(255,255,255,0.7);
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
             pointer-events: none; z-index: 5;
-            opacity: 0; transition: opacity 2s ease-in;
+            opacity: 0; transition: opacity 1.5s ease-in; /* 聽完發音後 1.5 秒淡入圖片 */
+            display: flex; flex-direction: column; align-items: center;
+        }
+        #word-hint img {
+            max-height: 160px; max-width: 250px; object-fit: contain;
+            border-radius: 20px; border: 6px solid white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); background: white;
         }
 
         /* 氣球樣式 */
@@ -39,61 +43,60 @@
         @keyframes floatUp { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; } 50% { transform: translateY(-50vh) translateX(30px) rotate(5deg); } 100% { transform: translateY(-120vh) translateX(-30px) rotate(-5deg); opacity: 1; } }
 
         .balloon.popped { animation: pop 0.2s ease-out forwards !important; pointer-events: none; }
-        @keyframes pop { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
+        @keyframes pop { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; filter: brightness(1.5); } 100% { transform: scale(0); opacity: 0; } }
 
-        .balloon.error { background: rgba(255,51,102,0.3); border-radius: 50%; }
+        .balloon.error { filter: grayscale(50%) hue-rotate(300deg); }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-15px) rotate(-15deg); } 75% { transform: translateX(15px) rotate(15deg); } }
 
-        .float-text { position: absolute; font-size: 30px; font-weight: bold; color: #26890C; pointer-events: none; animation: floatText 1s forwards; z-index: 100; text-shadow: 0 2px 4px rgba(255,255,255,0.8); }
+        .float-text { position: absolute; font-size: 35px; font-weight: 900; color: #26890C; pointer-events: none; animation: floatText 0.8s forwards; z-index: 100; text-shadow: 0 3px 0 white, 0 -3px 0 white, 3px 0 0 white, -3px 0 0 white; }
         .float-text.minus { color: #E21B3C; }
-        @keyframes floatText { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-60px) scale(1.5); } }
+        @keyframes floatText { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.5); } }
 
         /* 設定彈窗 */
-        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:1000; }
-        .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 450px; text-align: left; }
-        select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; }
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; }
+        .setup-box { background: white; padding: 40px; border-radius: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); width: 90%; max-width: 500px; text-align: left; }
+        select { width: 100%; padding: 15px; margin-bottom: 25px; font-size: 18px; border-radius: 12px; border: 2px solid #ccc; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 設定畫面：讓老師決定要抓哪個部位 -->
+    <!-- 1. 設定畫面：依照課本難度分級 -->
     <div id="setup-screen" class="modal">
         <div class="setup-box">
-            <h2 style="margin-top:0; text-align:center;">🥷 字母忍者 (Phonics Ninja)</h2>
-            <p style="color:#555; text-align:center; margin-bottom:20px;">選擇你要訓練孩子們抓取單字中的哪一個部分！</p>
+            <h2 style="margin-top:0; text-align:center; font-size: 32px;">🥷 字母忍者 (Phonics)</h2>
+            <p style="color:#555; text-align:center; margin-bottom:20px; font-size: 18px;">請根據孩子目前的學習進度，選擇斬擊難度！</p>
             
-            <label style="display:block; font-weight:bold;">尋找目標：</label>
-            <select id="target-mode">
-                <option value="first_1">字首 1 個字母 (例: [c]at)</option>
-                <option value="first_2">字首 2 個字母 (複合子音, 例: [bl]ack)</option>
-                <option value="vowel_1">短母音 (找中間的字, 例: b[a]t)</option>
-                <option value="magic_e">長母音 Magic E (例: c[a_e]k -> a_e)</option>
-                <option value="last_1">字尾 1 個字母 (例: ca[t])</option>
+            <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">📚 課程難度 (向下包容)：</label>
+            <select id="book-level">
+                <option value="1">Book 1 (只找開頭第一個字母)</option>
+                <option value="2">Book 2 (找單字中的任一單一字母)</option>
+                <option value="3">Book 3 (加入 a_e / i_e 等 Magic E)</option>
+                <option value="4" selected>Book 4 (完全拆解！包含 bl, ck, sh 等)</option>
             </select>
             
-            <button onclick="showWheel()" style="width:100%; padding:15px; background:#26890C; color:white; border:none; border-radius:10px; font-size:20px; font-weight:bold; cursor:pointer;">🎡 抽取今日主題</button>
+            <button onclick="showWheel()" style="width:100%; padding:18px; background:#26890C; color:white; border:none; border-radius:15px; font-size:22px; font-weight:900; cursor:pointer;">🎡 抽取場景主題</button>
         </div>
     </div>
 
     <!-- 2. 主題轉盤畫面 -->
-    <div id="wheel-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; z-index:1001;">
-        <h2 id="wheel-title" style="color:white; margin-bottom: 30px; font-size: 28px;">轉動輪盤，決定挑戰場景！</h2>
-        <div style="position:relative; width: 300px; height: 300px;">
-            <div style="position:absolute; top:-15px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:20px solid transparent; border-right:20px solid transparent; border-top:40px solid #ff3366; z-index:10;"></div>
-            <div id="theme-wheel" style="width:100%; height:100%; border-radius:50%; border:8px solid white; box-sizing:border-box; background: conic-gradient(#ff7eb3 0deg 60deg, #fbc2eb 60deg 120deg, #2b1055 120deg 180deg, #4facfe 180deg 240deg, #a8e063 240deg 300deg, #1cb5e0 300deg 360deg); transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1); box-shadow: 0 0 25px rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center;">
-                <div style="background: white; width: 50px; height: 50px; border-radius: 50%; z-index: 5;"></div>
+    <div id="wheel-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; z-index:1001;">
+        <h2 id="wheel-title" style="color:white; margin-bottom: 40px; font-size: 36px; text-shadow: 0 0 15px rgba(255,255,255,0.5);">決定挑戰場景！</h2>
+        <div style="position:relative; width: 350px; height: 350px;">
+            <div style="position:absolute; top:-20px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:25px solid transparent; border-right:25px solid transparent; border-top:50px solid #ff3366; z-index:10;"></div>
+            <div id="theme-wheel" style="width:100%; height:100%; border-radius:50%; border:10px solid white; box-sizing:border-box; background: conic-gradient(#ff7eb3 0deg 60deg, #fbc2eb 60deg 120deg, #2b1055 120deg 180deg, #4facfe 180deg 240deg, #a8e063 240deg 300deg, #1cb5e0 300deg 360deg); transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1); box-shadow: 0 0 40px rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; width: 60px; height: 60px; border-radius: 50%; z-index: 5;"></div>
             </div>
         </div>
-        <button id="spin-btn" onclick="spinWheel()" style="margin-top: 40px; padding: 15px 40px; background: #ff9933; color: white; border: none; border-radius: 30px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,153,51,0.4);">開始轉動！</button>
+        <button id="spin-btn" onclick="spinWheel()" style="margin-top: 50px; padding: 18px 50px; background: #ff9933; color: white; border: none; border-radius: 40px; font-size: 26px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 20px rgba(255,153,51,0.5);">開始轉動！</button>
     </div>
 
-    <!-- 3. 遊戲結束畫面 (時間到顯示) -->
-    <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); align-items:center; justify-content:center; flex-direction:column; z-index:2000;">
-        <h2 style="color:white; font-size:50px; margin-bottom:20px; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">⏳ 時間到！</h2>
-        <div style="background:white; padding:40px 60px; border-radius:20px; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <h3 style="font-size:24px; color:#555; margin:0;">本次得分</h3>
-            <p id="final-score" style="font-size:80px; font-weight:bold; color:#ff3366; margin:10px 0;">0</p>
-            <button onclick="location.reload()" style="padding:15px 30px; background:#4facfe; color:white; border:none; border-radius:10px; font-size:20px; font-weight:bold; cursor:pointer; margin-top:10px; width:100%;">再來一局</button>
+    <!-- 3. 遊戲結束畫面 -->
+    <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; z-index:2000;">
+        <h2 style="color:white; font-size:60px; margin-bottom:20px; text-shadow: 0 5px 15px rgba(0,0,0,0.8);">⏳ 時間到！</h2>
+        <div style="background:white; padding:50px 80px; border-radius:30px; text-align:center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h3 style="font-size:28px; color:#555; margin:0;">忍者積分</h3>
+            <p id="final-score" style="font-size:100px; font-weight:900; color:#ff3366; margin:10px 0;">0</p>
+            <button onclick="location.reload()" style="padding:18px 40px; background:#4facfe; color:white; border:none; border-radius:15px; font-size:24px; font-weight:bold; cursor:pointer; margin-top:20px; width:100%; box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);">🔄 再來一局</button>
         </div>
     </div>
 
@@ -101,25 +104,26 @@
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()"><span>⭠</span> 回單元列表</button>
         <div class="status-bar">
-            <!-- 加入計時器 -->
             <div class="time-board">⏳ <span id="time">60</span>s</div>
-            <div class="score-board">⭐ 分數: <span id="score">0</span></div>
-            <button class="play-btn" onclick="playCurrentWordAudio()">🔊 再聽一次</button>
+            <div class="score-board">⭐ 積分: <span id="score">0</span></div>
+            <button class="play-btn" onclick="playCurrentWordAudio()">🔊 重新聽發音</button>
         </div>
     </div>
 
     <!-- 遊戲區 -->
     <div id="game-container">
-        <!-- 單字提示區塊 -->
+        <!-- 改版：使用圖片作為視覺提示 -->
         <div id="word-hint"></div>
-        <div id="timer-bar-container" style="position:absolute; top:120px; left:50%; transform:translateX(-50%); width: 200px; height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; z-index: 20;">
-            <div id="timer-bar-fill" style="width: 100%; height: 100%; background: #FFD700; transition: width 1s linear;"></div>
+        
+        <!-- 單字倒數計時條 -->
+        <div id="timer-bar-container" style="position:absolute; top:220px; left:50%; transform:translateX(-50%); width: 250px; height: 12px; background: rgba(0,0,0,0.1); border-radius: 6px; overflow: hidden; z-index: 20; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
+            <div id="timer-bar-fill" style="width: 100%; height: 100%; background: #26890C; transition: width 1s linear;"></div>
         </div>
     </div>
 
     <script>
     let rawData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
-    if (rawData.length === 0) alert("找不到單字資料！");
+    if (rawData.length === 0) alert("找不到單字資料，請從目錄進入！");
     let vocabData = rawData.filter(item => item.english && item.english.trim() !== "");
     let vocabQueue = []; 
     
@@ -134,8 +138,9 @@
 
     let activeTheme = themes[0], currentRotation = 0;
     let score = 0, timeLeft = 60, wordTimeLeft = 10;
-    let currentWordObj = null, targetStr = ""; 
-    let gameMode = 'first_1'; // 預設模式
+    let currentWordObj = null; 
+    let validTargets = []; // 儲存該單字所有合法的發音塊 (例如 black -> ["bl", "a", "ck"])
+    let gameLevel = '4'; // 預設 Book 4
     let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
 
     const container = document.getElementById('game-container');
@@ -143,13 +148,15 @@
     const timeEl = document.getElementById('time');
     const wordHintEl = document.getElementById('word-hint');
 
-    // 常用複合子音/母音干擾項
-    const digraphs = ["ch", "sh", "th", "ph", "wh", "bl", "cl", "fl", "gl", "pl", "sl", "br", "cr", "dr", "fr", "gr", "pr", "tr"];
-    const vowels = ["a", "e", "i", "o", "u"];
-    const magicEs = ["a_e", "i_e", "o_e", "u_e", "e_e"];
+    // 干擾項字庫 (依難度擴充)
+    const distractorsL1 = "abcdefghijklmnopqrstuvwxyz".split('');
+    const distractorsL3 = [...distractorsL1, "a_e", "i_e", "o_e", "u_e"];
+    const distractorsL4 = [...distractorsL3, "ch", "sh", "th", "wh", "ph", "ck", "ng", "bl", "cl", "fl", "gl", "pl", "sl", "br", "cr", "dr", "fr", "gr", "pr", "tr", "ai", "ee", "ea", "oa", "oo", "ou", "ow", "ar", "er", "ir", "or", "ur"];
+
+    function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
 
     function showWheel() {
-        gameMode = document.getElementById('target-mode').value;
+        gameLevel = document.getElementById('book-level').value;
         document.getElementById('setup-screen').style.display = 'none';
         document.getElementById('wheel-screen').style.display = 'flex';
     }
@@ -187,30 +194,42 @@
         document.getElementById('game-over-screen').style.display = 'flex';
     }
 
-    // 核心大腦：分析單字並抓出目標字串
-    function extractTarget(word, mode) {
+    // 🧠 核心：超級拼音拆解引擎 (Phonics Parser)
+    // 根據老師設定的 Book Level，將單字拆解成陣列。陣列裡的所有字串，都是可以被點擊得分的目標！
+    function getValidTargets(word, level) {
         let w = word.toLowerCase();
-        if (mode === 'first_1') return w.charAt(0);
-        if (mode === 'first_2') return w.length >= 2 ? w.substring(0, 2) : w;
-        if (mode === 'last_1') return w.charAt(w.length - 1);
-        if (mode === 'vowel_1') {
-            // 找第一個出現的母音
-            for (let i = 0; i < w.length; i++) {
-                if (vowels.includes(w[i])) return w[i];
-            }
-            return "a"; // 預防萬一
+        
+        // Book 1: 只抓字首第一個字 (e.g. cat -> ["c"])
+        if (level === '1') return [w.charAt(0)];
+        
+        // Book 2: 單字裡面的任一單一字母都可以抓 (e.g. cat -> ["c", "a", "t"])
+        if (level === '2') return w.split('');
+        
+        // Book 3 & 4: 優先抓出 Magic E (例如 cake -> a_e)
+        let res = [];
+        let magicEMatch = w.match(/^(.*)([aeiou])([^aeiou])e$/);
+        let remainStr = w;
+        
+        if (magicEMatch) {
+            remainStr = magicEMatch[1]; // 剩下的前半段 (例如 cake 剩下 c)
+            res.push(magicEMatch[2] + "_e"); // 塞入 a_e
+            res.push(magicEMatch[3]);        // 塞入中間的子音 k
         }
-        if (mode === 'magic_e') {
-            // 找找看有沒有 [母音]+[子音]+e 的結構 (例如 cake -> a_e)
-            let match = w.match(/([aeiou])[^aeiou]e/);
-            if (match) return match[1] + "_e";
-            // 如果沒找到，退而求其次找第一個母音加上 _e
-            for (let i = 0; i < w.length; i++) {
-                if (vowels.includes(w[i])) return w[i] + "_e";
-            }
-            return "a_e"; 
+
+        if (level === '3') {
+            // Book 3: 剩下的字全部當成單一字母 (e.g. cake -> ["a_e", "k", "c"])
+            if (remainStr) res.push(...remainStr.split(''));
+            return res;
         }
-        return w.charAt(0);
+
+        if (level === '4') {
+            // Book 4: 剩下的字用強大的 Regex 抓出所有複合子音與母音！
+            // 這個正則表達式包含了幾乎所有的常見 Phonics 組合
+            const advancedRegex = /(sch|scr|shr|spl|spr|squ|str|thr|dge|tch|ch|sh|th|wh|ph|ck|ng|nk|bl|cl|fl|gl|pl|sl|br|cr|dr|fr|gr|pr|tr|sm|sn|sp|st|sw|tw|ai|ay|ee|ea|ie|oa|oe|ue|oo|ou|ow|oi|oy|aw|au|ew|ar|er|ir|or|ur|[a-z])/g;
+            let chunks = remainStr.match(advancedRegex) || [];
+            return [...chunks, ...res]; 
+            // e.g. black -> 引擎會切成 ["bl", "a", "ck"]
+        }
     }
 
     function nextRound() {
@@ -218,35 +237,39 @@
         wordTimeLeft = 10;
         
         const timerBar = document.getElementById('timer-bar-fill');
-        if (timerBar) timerBar.style.width = '100%'; 
+        if (timerBar) { timerBar.style.width = '100%'; timerBar.style.background = '#26890C'; }
 
         if (vocabQueue.length === 0) vocabQueue = [...vocabData].sort(() => Math.random() - 0.5);
         currentWordObj = vocabQueue.pop();
         
-        // 透過分析引擎決定目標字串
-        targetStr = extractTarget(currentWordObj.english, gameMode);
+        // 取得該單字在當前難度下，所有合法的標靶組合
+        validTargets = getValidTargets(currentWordObj.english, gameLevel);
         
-        // 畫面上的提示會加上括號標示 (例如 [bl]ack)
-        let displayHint = currentWordObj.english;
-        if(gameMode === 'first_1') displayHint = `[${currentWordObj.english.substring(0,1)}]${currentWordObj.english.substring(1)}`;
-        if(gameMode === 'first_2' && currentWordObj.english.length>=2) displayHint = `[${currentWordObj.english.substring(0,2)}]${currentWordObj.english.substring(2)}`;
-        // magic_e 等比較難精確標示，就直接顯示單字
-        
+        // 🖼️ 顯示圖片提示 (延遲 1.5 秒讓孩子先聽音)
         wordHintEl.style.opacity = '0';
-        wordHintEl.innerText = displayHint;
+        if (currentWordObj.image_URL) {
+            wordHintEl.innerHTML = `<img src="${fixPath(currentWordObj.image_URL)}">`;
+        } else {
+            // 防呆：如果沒有圖，顯示一個神祕的問號，逼他們聽音
+            wordHintEl.innerHTML = `<div style="font-size:120px; text-shadow:0 10px 20px rgba(0,0,0,0.3);">❓</div>`;
+        }
+        
         clearTimeout(hintTimeout);
-        hintTimeout = setTimeout(() => { wordHintEl.style.opacity = '1'; }, 3000);
+        hintTimeout = setTimeout(() => { wordHintEl.style.opacity = '1'; }, 1500);
 
         playCurrentWordAudio();
         
         wordTimerInterval = setInterval(() => {
             wordTimeLeft--;
-            if (timerBar) timerBar.style.width = `${(wordTimeLeft / 10) * 100}%`;
+            if (timerBar) {
+                timerBar.style.width = `${(wordTimeLeft / 10) * 100}%`;
+                if(wordTimeLeft <= 3) timerBar.style.background = '#E21B3C'; // 最後3秒變紅
+            }
             if (wordTimeLeft <= 0) nextRound();
         }, 1000);
 
         clearInterval(gameInterval);
-        gameInterval = setInterval(spawnBalloon, 800); 
+        gameInterval = setInterval(spawnBalloon, 700); 
     }
 
     function playCurrentWordAudio() {
@@ -265,44 +288,50 @@
         window.speechSynthesis.speak(msg);
     }
 
-    // 根據模式生成干擾選項
-    function getRandomTarget(forceTarget) {
-        if (forceTarget) return targetStr;
+    // 取得要印在氣球上的字
+    function getRandomTargetText(forceCorrect) {
+        if (forceCorrect && validTargets.length > 0) {
+            // 如果決定要生出正確答案，就從合法的拆解陣列中隨機挑一個 (例如從 bl, a, ck 挑一個)
+            return validTargets[Math.floor(Math.random() * validTargets.length)];
+        }
         
-        if (gameMode === 'first_1' || gameMode === 'last_1') {
-            const alphabet = "abcdefghijklmnopqrstuvwxyz";
-            return alphabet[Math.floor(Math.random() * alphabet.length)];
+        // 否則從干擾庫中抓取
+        let pool = distractorsL1;
+        if (gameLevel === '3') pool = distractorsL3;
+        if (gameLevel === '4') pool = distractorsL4;
+        
+        let distractor = pool[Math.floor(Math.random() * pool.length)];
+        // 確保存出來的干擾項，真的不是正確答案
+        while(validTargets.includes(distractor)) {
+            distractor = pool[Math.floor(Math.random() * pool.length)];
         }
-        if (gameMode === 'first_2') {
-            return digraphs[Math.floor(Math.random() * digraphs.length)];
-        }
-        if (gameMode === 'vowel_1') {
-            return vowels[Math.floor(Math.random() * vowels.length)];
-        }
-        if (gameMode === 'magic_e') {
-            return magicEs[Math.floor(Math.random() * magicEs.length)];
-        }
-        return "a";
+        return distractor;
     }
 
     function spawnBalloon() {
         const balloon = document.createElement('div');
         balloon.className = 'balloon';
-        const stringToShow = getRandomTarget(Math.random() < 0.3);
+        
+        // 約 40% 的機率出現正確的拼音組塊
+        const isCorrectTarget = Math.random() < 0.40; 
+        const stringToShow = getRandomTargetText(isCorrectTarget);
         const propEmoji = activeTheme.props[Math.floor(Math.random() * activeTheme.props.length)];
         
-        // 字串比較長時稍微縮小字體
+        // 字串比較長時稍微縮小字體 (例如 a_e)
         let fontSize = stringToShow.length > 1 ? "40px" : "60px";
 
         balloon.innerHTML = `
-            <span style="font-size:80px; line-height: 1;">${propEmoji}</span>
-            <span style="font-size:${fontSize}; font-weight:900; text-shadow: 0 3px 6px rgba(0,0,0,0.8); color:white; margin-top: -15px;">${stringToShow}</span>
+            <span style="font-size:90px; line-height: 1; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3));">${propEmoji}</span>
+            <span style="font-size:${fontSize}; font-weight:900; text-shadow: 0 4px 8px rgba(0,0,0,0.8); color:white; margin-top: -20px; z-index:2;">${stringToShow}</span>
         `;
         balloon.style.left = `${10 + Math.random() * 80}%`;
-        balloon.style.animation = `floatUp ${6000 + Math.random() * 4000}ms linear forwards`;
+        balloon.style.animation = `floatUp ${5000 + Math.random() * 4000}ms linear forwards`;
+        
         balloon.addEventListener('pointerdown', (e) => {
             if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
-            if (stringToShow.toLowerCase() === targetStr.toLowerCase()) {
+            
+            // 判定：只要點擊的氣球上的字，存在於這個單字的合法陣列中，就算答對！
+            if (validTargets.includes(stringToShow.toLowerCase())) {
                 balloon.classList.add('popped');
                 updateScore(5, e.clientX, e.clientY);
                 playEffectSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
@@ -313,18 +342,22 @@
                 playEffectSound('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3');
             }
         });
+        
         balloon.addEventListener('animationend', (e) => { if (e.animationName === 'floatUp') balloon.remove(); });
         container.appendChild(balloon);
     }
 
     function updateScore(points, x, y) {
-        score += points; scoreEl.innerText = score;
+        score += points; 
+        if (score < 0) score = 0; // 最低0分
+        scoreEl.innerText = score;
+        
         const floatText = document.createElement('div');
         floatText.className = 'float-text ' + (points < 0 ? 'minus' : '');
         floatText.innerText = points > 0 ? `+${points}` : points;
-        floatText.style.left = `${x}px`; floatText.style.top = `${y - 30}px`;
+        floatText.style.left = `${x - 20}px`; floatText.style.top = `${y - 40}px`;
         document.body.appendChild(floatText);
-        setTimeout(() => floatText.remove(), 1000);
+        setTimeout(() => floatText.remove(), 800);
     }
 
     function playEffectSound(url) {
