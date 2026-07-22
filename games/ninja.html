@@ -28,7 +28,7 @@
         #word-hint {
             position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
             pointer-events: none; z-index: 5;
-            opacity: 0; transition: opacity 1.5s ease-in; /* 聽完發音後 1.5 秒淡入圖片 */
+            opacity: 0; transition: opacity 1.5s ease-in; 
             display: flex; flex-direction: column; align-items: center;
         }
         #word-hint img {
@@ -60,7 +60,6 @@
 </head>
 <body>
 
-    <!-- 1. 設定畫面：依照課本難度分級 -->
     <div id="setup-screen" class="modal">
         <div class="setup-box">
             <h2 style="margin-top:0; text-align:center; font-size: 32px;">🥷 字母忍者 (Phonics)</h2>
@@ -78,7 +77,6 @@
         </div>
     </div>
 
-    <!-- 2. 主題轉盤畫面 -->
     <div id="wheel-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; z-index:1001;">
         <h2 id="wheel-title" style="color:white; margin-bottom: 40px; font-size: 36px; text-shadow: 0 0 15px rgba(255,255,255,0.5);">決定挑戰場景！</h2>
         <div style="position:relative; width: 350px; height: 350px;">
@@ -90,7 +88,6 @@
         <button id="spin-btn" onclick="spinWheel()" style="margin-top: 50px; padding: 18px 50px; background: #ff9933; color: white; border: none; border-radius: 40px; font-size: 26px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 20px rgba(255,153,51,0.5);">開始轉動！</button>
     </div>
 
-    <!-- 3. 遊戲結束畫面 -->
     <div id="game-over-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; z-index:2000;">
         <h2 style="color:white; font-size:60px; margin-bottom:20px; text-shadow: 0 5px 15px rgba(0,0,0,0.8);">⏳ 時間到！</h2>
         <div style="background:white; padding:50px 80px; border-radius:30px; text-align:center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
@@ -100,7 +97,6 @@
         </div>
     </div>
 
-    <!-- Header -->
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()"><span>⭠</span> 回單元列表</button>
         <div class="status-bar">
@@ -110,12 +106,8 @@
         </div>
     </div>
 
-    <!-- 遊戲區 -->
     <div id="game-container">
-        <!-- 改版：使用圖片作為視覺提示 -->
         <div id="word-hint"></div>
-        
-        <!-- 單字倒數計時條 -->
         <div id="timer-bar-container" style="position:absolute; top:220px; left:50%; transform:translateX(-50%); width: 250px; height: 12px; background: rgba(0,0,0,0.1); border-radius: 6px; overflow: hidden; z-index: 20; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
             <div id="timer-bar-fill" style="width: 100%; height: 100%; background: #26890C; transition: width 1s linear;"></div>
         </div>
@@ -139,8 +131,8 @@
     let activeTheme = themes[0], currentRotation = 0;
     let score = 0, timeLeft = 60, wordTimeLeft = 10;
     let currentWordObj = null; 
-    let validTargets = []; // 儲存該單字所有合法的發音塊 (例如 black -> ["bl", "a", "ck"])
-    let gameLevel = '4'; // 預設 Book 4
+    let validTargets = []; 
+    let gameLevel = '4'; 
     let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
 
     const container = document.getElementById('game-container');
@@ -148,7 +140,20 @@
     const timeEl = document.getElementById('time');
     const wordHintEl = document.getElementById('word-hint');
 
-    // 干擾項字庫 (依難度擴充)
+    // 🌟 發音家族字典：用來製造「高階認知混淆」
+    const phonicsFamilies = [
+        ['bl', 'cl', 'fl', 'gl', 'pl', 'sl'], // L-blends
+        ['br', 'cr', 'dr', 'fr', 'gr', 'pr', 'tr'], // R-blends
+        ['sm', 'sn', 'sp', 'st', 'sw', 'sc', 'sk'], // S-blends
+        ['ch', 'sh', 'th', 'wh', 'ph', 'ck', 'ng', 'nk', 'tch', 'dge'], // 常見複合子音
+        ['a', 'e', 'i', 'o', 'u'], // 短母音
+        ['a_e', 'i_e', 'o_e', 'u_e', 'e_e'], // Magic E
+        ['ai', 'ay', 'ee', 'ea', 'ie', 'oa', 'oe', 'ue', 'oo', 'ou', 'ow', 'oi', 'oy', 'aw', 'au', 'ew'], // Vowel teams
+        ['ar', 'er', 'ir', 'or', 'ur'], // R-controlled
+        ['b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','y','z'] // 單一子音
+    ];
+    
+    // 預設後備干擾庫
     const distractorsL1 = "abcdefghijklmnopqrstuvwxyz".split('');
     const distractorsL3 = [...distractorsL1, "a_e", "i_e", "o_e", "u_e"];
     const distractorsL4 = [...distractorsL3, "ch", "sh", "th", "wh", "ph", "ck", "ng", "bl", "cl", "fl", "gl", "pl", "sl", "br", "cr", "dr", "fr", "gr", "pr", "tr", "ai", "ee", "ea", "oa", "oo", "ou", "ow", "ar", "er", "ir", "or", "ur"];
@@ -194,41 +199,30 @@
         document.getElementById('game-over-screen').style.display = 'flex';
     }
 
-    // 🧠 核心：超級拼音拆解引擎 (Phonics Parser)
-    // 根據老師設定的 Book Level，將單字拆解成陣列。陣列裡的所有字串，都是可以被點擊得分的目標！
     function getValidTargets(word, level) {
         let w = word.toLowerCase();
-        
-        // Book 1: 只抓字首第一個字 (e.g. cat -> ["c"])
         if (level === '1') return [w.charAt(0)];
-        
-        // Book 2: 單字裡面的任一單一字母都可以抓 (e.g. cat -> ["c", "a", "t"])
         if (level === '2') return w.split('');
         
-        // Book 3 & 4: 優先抓出 Magic E (例如 cake -> a_e)
         let res = [];
         let magicEMatch = w.match(/^(.*)([aeiou])([^aeiou])e$/);
         let remainStr = w;
         
         if (magicEMatch) {
-            remainStr = magicEMatch[1]; // 剩下的前半段 (例如 cake 剩下 c)
-            res.push(magicEMatch[2] + "_e"); // 塞入 a_e
-            res.push(magicEMatch[3]);        // 塞入中間的子音 k
+            remainStr = magicEMatch[1]; 
+            res.push(magicEMatch[2] + "_e"); 
+            res.push(magicEMatch[3]);        
         }
 
         if (level === '3') {
-            // Book 3: 剩下的字全部當成單一字母 (e.g. cake -> ["a_e", "k", "c"])
             if (remainStr) res.push(...remainStr.split(''));
             return res;
         }
 
         if (level === '4') {
-            // Book 4: 剩下的字用強大的 Regex 抓出所有複合子音與母音！
-            // 這個正則表達式包含了幾乎所有的常見 Phonics 組合
             const advancedRegex = /(sch|scr|shr|spl|spr|squ|str|thr|dge|tch|ch|sh|th|wh|ph|ck|ng|nk|bl|cl|fl|gl|pl|sl|br|cr|dr|fr|gr|pr|tr|sm|sn|sp|st|sw|tw|ai|ay|ee|ea|ie|oa|oe|ue|oo|ou|ow|oi|oy|aw|au|ew|ar|er|ir|or|ur|[a-z])/g;
             let chunks = remainStr.match(advancedRegex) || [];
             return [...chunks, ...res]; 
-            // e.g. black -> 引擎會切成 ["bl", "a", "ck"]
         }
     }
 
@@ -242,15 +236,12 @@
         if (vocabQueue.length === 0) vocabQueue = [...vocabData].sort(() => Math.random() - 0.5);
         currentWordObj = vocabQueue.pop();
         
-        // 取得該單字在當前難度下，所有合法的標靶組合
         validTargets = getValidTargets(currentWordObj.english, gameLevel);
         
-        // 🖼️ 顯示圖片提示 (延遲 1.5 秒讓孩子先聽音)
         wordHintEl.style.opacity = '0';
         if (currentWordObj.image_URL) {
             wordHintEl.innerHTML = `<img src="${fixPath(currentWordObj.image_URL)}">`;
         } else {
-            // 防呆：如果沒有圖，顯示一個神祕的問號，逼他們聽音
             wordHintEl.innerHTML = `<div style="font-size:120px; text-shadow:0 10px 20px rgba(0,0,0,0.3);">❓</div>`;
         }
         
@@ -263,7 +254,7 @@
             wordTimeLeft--;
             if (timerBar) {
                 timerBar.style.width = `${(wordTimeLeft / 10) * 100}%`;
-                if(wordTimeLeft <= 3) timerBar.style.background = '#E21B3C'; // 最後3秒變紅
+                if(wordTimeLeft <= 3) timerBar.style.background = '#E21B3C'; 
             }
             if (wordTimeLeft <= 0) nextRound();
         }, 1000);
@@ -288,20 +279,39 @@
         window.speechSynthesis.speak(msg);
     }
 
-    // 取得要印在氣球上的字
+    // 🌟 智慧型干擾項生成 (Smart Distractor Generator)
     function getRandomTargetText(forceCorrect) {
         if (forceCorrect && validTargets.length > 0) {
-            // 如果決定要生出正確答案，就從合法的拆解陣列中隨機挑一個 (例如從 bl, a, ck 挑一個)
+            // 生成正確答案
             return validTargets[Math.floor(Math.random() * validTargets.length)];
         }
         
-        // 否則從干擾庫中抓取
+        // 嘗試生成「同家族的高階混淆干擾項」
+        if (validTargets.length > 0) {
+            // 從合法的拆解中隨機挑一個當作「混淆基準」 (例如選中 bl)
+            let baseTarget = validTargets[Math.floor(Math.random() * validTargets.length)];
+            
+            // 找出這個基準屬於字典裡的哪個家族
+            let matchingFamily = phonicsFamilies.find(family => family.includes(baseTarget));
+            
+            if (matchingFamily) {
+                // 從同一個家族裡挑選，並排除掉目前單字裡的正確答案 (例如把 bl 濾掉，剩下 cl, fl, gl...)
+                let availableDistractors = matchingFamily.filter(item => !validTargets.includes(item));
+                
+                // 如果家族裡還有可用的混淆項，就直接回傳！
+                if (availableDistractors.length > 0) {
+                    return availableDistractors[Math.floor(Math.random() * availableDistractors.length)];
+                }
+            }
+        }
+        
+        // 如果找不到家族，或者那個家族的選項被用光了，就退回原本的難度大字庫
         let pool = distractorsL1;
         if (gameLevel === '3') pool = distractorsL3;
         if (gameLevel === '4') pool = distractorsL4;
         
         let distractor = pool[Math.floor(Math.random() * pool.length)];
-        // 確保存出來的干擾項，真的不是正確答案
+        // 確保隨機抽出的真的不是正確答案
         while(validTargets.includes(distractor)) {
             distractor = pool[Math.floor(Math.random() * pool.length)];
         }
@@ -312,12 +322,11 @@
         const balloon = document.createElement('div');
         balloon.className = 'balloon';
         
-        // 約 40% 的機率出現正確的拼音組塊
         const isCorrectTarget = Math.random() < 0.40; 
+        // 透過新的智慧引擎取得氣球上的文字！
         const stringToShow = getRandomTargetText(isCorrectTarget);
         const propEmoji = activeTheme.props[Math.floor(Math.random() * activeTheme.props.length)];
         
-        // 字串比較長時稍微縮小字體 (例如 a_e)
         let fontSize = stringToShow.length > 1 ? "40px" : "60px";
 
         balloon.innerHTML = `
@@ -330,7 +339,6 @@
         balloon.addEventListener('pointerdown', (e) => {
             if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
             
-            // 判定：只要點擊的氣球上的字，存在於這個單字的合法陣列中，就算答對！
             if (validTargets.includes(stringToShow.toLowerCase())) {
                 balloon.classList.add('popped');
                 updateScore(5, e.clientX, e.clientY);
@@ -349,7 +357,7 @@
 
     function updateScore(points, x, y) {
         score += points; 
-        if (score < 0) score = 0; // 最低0分
+        if (score < 0) score = 0; 
         scoreEl.innerText = score;
         
         const floatText = document.createElement('div');
