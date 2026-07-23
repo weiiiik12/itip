@@ -75,7 +75,7 @@
         #red-side { border-right: 4px solid #000; background: rgba(255, 71, 87, 0.05); }
         #blue-side { background: rgba(30, 144, 255, 0.05); }
         
-        /* 卡片網格 (模仿 Duolingo 上下各 4 個不重複獨立方格) */
+        /* 卡片網格 */
         .card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: 45%; align-items: center; }
         .match-card { 
             width: 100%; height: 100%; min-height: 70px;
@@ -91,7 +91,7 @@
         .selected-red { border-color: #ff4757 !important; background: rgba(255, 71, 87, 0.3) !important; transform: scale(1.05); box-shadow: 0 0 15px #ff4757; }
         .selected-blue { border-color: #1e90ff !important; background: rgba(30, 144, 255, 0.3) !important; transform: scale(1.05); box-shadow: 0 0 15px #1e90ff; }
         
-        /* 消除時的淡出動畫 (類似 Duolingo 消失效果) */
+        /* 消除時的淡出動畫 */
         .matched { transform: scale(0.2); opacity: 0; pointer-events: none; transition: all 0.3s ease; }
         .error { animation: cardShake 0.3s; border-color: #ff3366 !important; background: rgba(255,51,102,0.3) !important;}
         @keyframes cardShake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
@@ -149,12 +149,11 @@
     </div>
 
     <div class="game-header">
-        <button class="back-btn" onclick="window.location.href='../index.html?return=games'">⭠ 返回</button>
+        <button class="back-btn" onclick="window.location.href='../index.html?return=games'">⭠ 返回目錄</button>
         <div style="font-size: 20px; font-weight: 900; color: #f1c40f; letter-spacing: 2px;">SPEED RELAY RACE</div>
         <div style="width: 80px;"></div>
     </div>
 
-    <!-- 賽道區塊 -->
     <div id="track-arena">
         <div class="track">
             <div class="finish-line"></div>
@@ -170,7 +169,6 @@
         </div>
     </div>
     
-    <!-- 遊戲操作區：模仿 Duolingo 獨立 4+4 格不重複網格 -->
     <div id="play-area">
         <div class="team-side" id="red-side">
             <div id="red-floating" class="floating-text" style="color: #ff4757;"></div>
@@ -218,20 +216,17 @@
         let msg = new SpeechSynthesisUtterance(word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
     }
 
-    // 初始化該隊的 4+4 獨立不重複卡片網格
     function initTeamBoard(team) {
         const topGrid = document.getElementById(`${team}-top-grid`);
         const botGrid = document.getElementById(`${team}-bot-grid`);
         topGrid.innerHTML = ''; 
         botGrid.innerHTML = '';
 
-        // 隨機選出 4 個完全不重複的單字
         let chosenItems = [...vocabList].sort(() => 0.5 - Math.random()).slice(0, 4);
 
         let topCardsData = chosenItems.map(item => ({ pairId: item.english, html: getContent(item, config.top) }));
         let botCardsData = chosenItems.map(item => ({ pairId: item.english, html: getContent(item, config.bot) }));
 
-        // 下方選項打散順序
         topCardsData.sort(() => 0.5 - Math.random());
         botCardsData.sort(() => 0.5 - Math.random());
 
@@ -252,11 +247,9 @@
         gridContainer.appendChild(card);
     }
 
-    // 點擊卡片與 Duolingo 式「消除後立刻補上全新不重複單字」的邏輯
     function handleCardTap(card, team) {
         if (isGameOver || card.classList.contains('matched')) return;
 
-        // 如果點到聲音，直接發音
         if (card.dataset.type === 'audio') {
             let item = vocabList.find(x => x.english === card.dataset.pair);
             if (item && item.audio_URL) {
@@ -279,7 +272,6 @@
             let card1 = selected[team];
             let card2 = card;
             
-            // 不能選同一排的卡片
             let grid1 = card1.parentElement.id;
             let grid2 = card2.parentElement.id;
             if (grid1 === grid2) {
@@ -290,7 +282,7 @@
             }
 
             if (card1.dataset.pair === card2.dataset.pair) {
-                // 【配對成功】：消除動畫
+                // 【配對成功】
                 card1.classList.add('matched');
                 card2.classList.add('matched');
                 
@@ -308,10 +300,9 @@
 
                 playSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
 
-                // 模仿 Duolingo：0.3秒後直接將這兩張卡片變身為「全新、畫面上沒有重複」的新單字！
+                // 🌟 關鍵修復：呼叫全新的「成雙成對補字」函數
                 setTimeout(() => {
-                    replaceWithNewUniqueCard(team, card1);
-                    replaceWithNewUniqueCard(team, card2);
+                    replaceMatchedPair(team, card1, card2);
                 }, 300);
 
             } else {
@@ -331,29 +322,38 @@
         }
     }
 
-    // 確保補上來的單字，絕對不會和「目前畫面上其他還沒消掉的單字」重複
-    function replaceWithNewUniqueCard(team, cardEl) {
-        let gridId = cardEl.parentElement.id;
-        let cardType = cardEl.dataset.type;
-
-        // 收集目前畫面上所有已經存在的單字 pairId，避免重複
+    // 🌟 關鍵修復邏輯：確保兩張卡片被換成「同一個」新單字
+    function replaceMatchedPair(team, card1, card2) {
+        let matchedPairId = card1.dataset.pair;
+        
+        // 抓出畫面上目前「還活著」的其他配對 (排除剛剛消除的這組)
         let currentOnScreen = Array.from(document.querySelectorAll(`#${team}-side .match-card`))
-            .map(c => c.dataset.pair);
+            .map(c => c.dataset.pair)
+            .filter(pairId => pairId !== matchedPairId);
 
         // 過濾出還沒出現在畫面上的候選單字
         let availableItems = vocabList.filter(item => !currentOnScreen.includes(item.english));
         
-        // 如果題庫太小導致全部都上過一輪了，就從全部單字裡面隨機挑一個
+        // 如果題庫太小，全部都出現過了，那就從所有題庫裡隨機抽 (允許重複出現)
         if (availableItems.length === 0) {
             availableItems = vocabList;
         }
 
+        // 隨機選出「一個」新的單字
         let newItem = availableItems[Math.floor(Math.random() * availableItems.length)];
 
-        // 更新這張卡的內容與屬性
-        cardEl.dataset.pair = newItem.english;
-        cardEl.innerHTML = getContent(newItem, cardType);
-        cardEl.classList.remove('matched', `selected-${team}`);
+        // 判斷哪一張是上面的卡、哪一張是下面的卡
+        let topCard = card1.parentElement.id.includes('top') ? card1 : card2;
+        let botCard = card1.parentElement.id.includes('bot') ? card1 : card2;
+
+        // 同時把這個新單字的上、下半部，精準補回去
+        topCard.dataset.pair = newItem.english;
+        topCard.innerHTML = getContent(newItem, config.top);
+        topCard.classList.remove('matched', `selected-${team}`);
+
+        botCard.dataset.pair = newItem.english;
+        botCard.innerHTML = getContent(newItem, config.bot);
+        botCard.classList.remove('matched', `selected-${team}`);
     }
 
     function showFloatingText(team, text) {
