@@ -84,14 +84,22 @@
             font-size: clamp(14px, 2vw, 22px); font-weight: bold; cursor: pointer; 
             box-shadow: 0 6px 15px rgba(0,0,0,0.5); transition: all 0.2s; text-align: center; padding: 5px; color: white;
             opacity: 1; transform: scale(1);
+            
+            /* 🔥 新增：每次洗牌時的彈出動畫，讓換題更有感！ */
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
+        
+        @keyframes popIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         .match-card img { max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; }
         
         /* 狀態特效 */
         .selected-red { border-color: #ff4757 !important; background: rgba(255, 71, 87, 0.3) !important; transform: scale(1.05); box-shadow: 0 0 15px #ff4757; }
         .selected-blue { border-color: #1e90ff !important; background: rgba(30, 144, 255, 0.3) !important; transform: scale(1.05); box-shadow: 0 0 15px #1e90ff; }
         
-        /* 消除時的淡出動畫 */
         .matched { transform: scale(0.2); opacity: 0; pointer-events: none; transition: all 0.3s ease; }
         .error { animation: cardShake 0.3s; border-color: #ff3366 !important; background: rgba(255,51,102,0.3) !important;}
         @keyframes cardShake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
@@ -184,12 +192,13 @@
 
 <script>
     let rawData = JSON.parse(sessionStorage.getItem('itip_current_vocab')) || [];
-    if(rawData.length < 4) { alert("單字數量不足 4 個，無法進行遊戲！"); window.history.back(); }
+    if(rawData.length < 4) { alert("單字數量不足 4 個，無法進行遊戲！請至單元列表補充單字。"); window.history.back(); }
     let vocabList = rawData.filter(item => item.english && item.chinese);
     
     let progress = { red: 0, blue: 0 }; 
     let isGameOver = false;
     let selected = { red: null, blue: null };
+    let boardLocked = { red: false, blue: false }; // 防干擾鎖定機制
     let config = { top: 'english', bot: 'chinese', target: 10 };
     let lastMatchTime = { red: 0, blue: 0 };
 
@@ -199,8 +208,8 @@
         config.target = parseInt(document.getElementById('win-target').value);
         document.getElementById('setup-screen').style.display = 'none';
 
-        initTeamBoard('red');
-        initTeamBoard('blue');
+        generatePuzzle('red');
+        generatePuzzle('blue');
     }
 
     function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
@@ -216,24 +225,63 @@
         let msg = new SpeechSynthesisUtterance(word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
     }
 
-    function initTeamBoard(team) {
+    // 🔥 核心：產生「永遠只有一組正確答案」的全新謎題版面
+    function generatePuzzle(team) {
+        // 重置選擇狀態
+        selected[team] = null;
+        
         const topGrid = document.getElementById(`${team}-top-grid`);
         const botGrid = document.getElementById(`${team}-bot-grid`);
         topGrid.innerHTML = ''; 
         botGrid.innerHTML = '';
 
-        let chosenItems = [...vocabList].sort(() => 0.5 - Math.random()).slice(0, 4);
+        // 1. 決定這局唯一的「目標答案」
+        let targetItem = vocabList[Math.floor(Math.random() * vocabList.length)];
+        
+        // 2. 準備干擾項 (過濾掉正確答案)
+        let availableDistractors = vocabList.filter(item => item.english !== targetItem.english);
+        availableDistractors.sort(() => 0.5 - Math.random());
 
-        let topCardsData = chosenItems.map(item => ({ pairId: item.english, html: getContent(item, config.top) }));
-        let botCardsData = chosenItems.map(item => ({ pairId: item.english, html: getContent(item, config.bot) }));
+        let topDistractors = [];
+        let botDistractors = [];
 
+        // 確保上半部和下半部的干擾項「絕對不會重複」，避免產生意外的配對
+        if (availableDistractors.length >= 6) {
+            // 單字量充足，直接抽 6 個不同的單字
+            for (let i = 0; i < 3; i++) {
+                topDistractors.push(availableDistractors[i]);
+                botDistractors.push(availableDistractors[i + 3]);
+            }
+        } else {
+            // 如果單字量不足 (例如只有 4 個字)，切半處理並允許在同一排內重複，確保上下不會產生交集
+            let half = Math.max(1, Math.floor(availableDistractors.length / 2));
+            let topPool = availableDistractors.slice(0, half);
+            let botPool = availableDistractors.slice(half);
+            
+            for (let i = 0; i < 3; i++) {
+                topDistractors.push(topPool[i % topPool.length]);
+                botDistractors.push(botPool[i % botPool.length]);
+            }
+        }
+
+        // 3. 組裝卡片資料 (1 正確 + 3 干擾)
+        let topCardsData = [
+            { pairId: targetItem.english, html: getContent(targetItem, config.top) },
+            ...topDistractors.map(item => ({ pairId: item.english, html: getContent(item, config.top) }))
+        ];
+
+        let botCardsData = [
+            { pairId: targetItem.english, html: getContent(targetItem, config.bot) },
+            ...botDistractors.map(item => ({ pairId: item.english, html: getContent(item, config.bot) }))
+        ];
+
+        // 4. 打亂上下排卡片順序
         topCardsData.sort(() => 0.5 - Math.random());
         botCardsData.sort(() => 0.5 - Math.random());
 
-        for (let i = 0; i < 4; i++) {
-            createCardElement(team, topGrid, topCardsData[i], config.top);
-            createCardElement(team, botGrid, botCardsData[i], config.bot);
-        }
+        // 5. 渲染出全新的卡片
+        topCardsData.forEach(data => createCardElement(team, topGrid, data, config.top));
+        botCardsData.forEach(data => createCardElement(team, botGrid, data, config.bot));
     }
 
     function createCardElement(team, gridContainer, cardData, cardType) {
@@ -248,7 +296,8 @@
     }
 
     function handleCardTap(card, team) {
-        if (isGameOver || card.classList.contains('matched')) return;
+        // 如果遊戲結束、卡片已配對，或是「版面正在洗牌中」則不准點擊
+        if (isGameOver || card.classList.contains('matched') || boardLocked[team]) return;
 
         if (card.dataset.type === 'audio') {
             let item = vocabList.find(x => x.english === card.dataset.pair);
@@ -272,6 +321,7 @@
             let card1 = selected[team];
             let card2 = card;
             
+            // 防呆：不能選同一排 (上下格的父元素 ID 判斷)
             let grid1 = card1.parentElement.id;
             let grid2 = card2.parentElement.id;
             if (grid1 === grid2) {
@@ -282,7 +332,9 @@
             }
 
             if (card1.dataset.pair === card2.dataset.pair) {
-                // 【配對成功】
+                // 【配對成功：找出那唯一的連結了！】
+                boardLocked[team] = true; // 鎖住版面，防止洗牌過渡期間被亂點
+                
                 card1.classList.add('matched');
                 card2.classList.add('matched');
                 
@@ -300,13 +352,14 @@
 
                 playSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
 
-                // 🌟 關鍵修復：呼叫全新的「成雙成對補字」函數
+                // 🔥 0.4秒後直接把整個盤面大洗牌，產生新的唯一謎題！
                 setTimeout(() => {
-                    replaceMatchedPair(team, card1, card2);
-                }, 300);
+                    generatePuzzle(team);
+                    boardLocked[team] = false; // 解除鎖定
+                }, 400);
 
             } else {
-                // 【配對失敗】
+                // 【配對失敗：點到干擾項了】
                 card1.classList.add('error');
                 card2.classList.add('error');
                 lastMatchTime[team] = 0; 
@@ -320,40 +373,6 @@
             }
             selected[team] = null;
         }
-    }
-
-    // 🌟 關鍵修復邏輯：確保兩張卡片被換成「同一個」新單字
-    function replaceMatchedPair(team, card1, card2) {
-        let matchedPairId = card1.dataset.pair;
-        
-        // 抓出畫面上目前「還活著」的其他配對 (排除剛剛消除的這組)
-        let currentOnScreen = Array.from(document.querySelectorAll(`#${team}-side .match-card`))
-            .map(c => c.dataset.pair)
-            .filter(pairId => pairId !== matchedPairId);
-
-        // 過濾出還沒出現在畫面上的候選單字
-        let availableItems = vocabList.filter(item => !currentOnScreen.includes(item.english));
-        
-        // 如果題庫太小，全部都出現過了，那就從所有題庫裡隨機抽 (允許重複出現)
-        if (availableItems.length === 0) {
-            availableItems = vocabList;
-        }
-
-        // 隨機選出「一個」新的單字
-        let newItem = availableItems[Math.floor(Math.random() * availableItems.length)];
-
-        // 判斷哪一張是上面的卡、哪一張是下面的卡
-        let topCard = card1.parentElement.id.includes('top') ? card1 : card2;
-        let botCard = card1.parentElement.id.includes('bot') ? card1 : card2;
-
-        // 同時把這個新單字的上、下半部，精準補回去
-        topCard.dataset.pair = newItem.english;
-        topCard.innerHTML = getContent(newItem, config.top);
-        topCard.classList.remove('matched', `selected-${team}`);
-
-        botCard.dataset.pair = newItem.english;
-        botCard.innerHTML = getContent(newItem, config.bot);
-        botCard.classList.remove('matched', `selected-${team}`);
     }
 
     function showFloatingText(team, text) {
