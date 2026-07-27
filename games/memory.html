@@ -11,18 +11,25 @@
         .back-btn { padding: 8px 15px; border-radius: 20px; border: none; background: rgba(255,255,255,0.2); color: white; cursor: pointer; font-weight: bold; transition: 0.2s;}
         .back-btn:hover { background: rgba(255,255,255,0.4); }
 
+        /* 記憶時間專屬頂部橫幅 (絕對不會擋到卡片) */
+        #memory-banner {
+            display: none; background: #ff4757; color: white; text-align: center; 
+            padding: 12px; font-size: 24px; font-weight: 900; letter-spacing: 2px;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5); z-index: 9;
+        }
+
         /* 遊戲區域 */
         #game-area { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; align-items: center; justify-content: center; position: relative;}
         
-        /* 🛠️ 優化：動態自適應網格，放大卡片並強制換行，解決擁擠感 */
+        /* 網格系統：移除 auto-fit，改由 JS 動態計算最完美的絕對矩形 */
         .memory-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* 最小寬度放大到 180px */
-            gap: 20px; /* 加大卡片間距 */
-            width: 95%; /* 讓網格有效利用兩側空間 */
+            gap: 15px;
+            width: 95%;
             max-width: 1400px;
+            margin: 0 auto;
             perspective: 1000px;
-            padding-bottom: 50px;
+            padding-bottom: 20px;
         }
 
         .memory-card {
@@ -53,27 +60,6 @@
         .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); width: 90%; max-width: 400px; text-align: left; }
         select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; }
         .start-btn { width: 100%; padding: 15px; font-size: 20px; background: #ff4757; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,71,87,0.4); }
-        
-        /* 🛠️ 優化：記憶時間倒數遮罩移到畫面上方 */
-        #preview-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.2); /* 背景調淡一點 */
-            display: none; 
-            flex-direction: column; 
-            justify-content: flex-start; /* 讓內容靠上方對齊 */
-            align-items: center; /* 水平置中 */
-            padding-top: 30px; /* 往下推一點點，不要完全貼緊邊緣 */
-            z-index: 50; pointer-events: none;
-        }
-        #preview-text { 
-            font-size: 50px; 
-            font-weight: 900; 
-            color: #f1c40f; 
-            text-shadow: 0 5px 15px rgba(0,0,0,0.8); 
-            background: rgba(0,0,0,0.65); /* 加上半透明黑底膠囊，讓字體更明顯 */
-            padding: 10px 40px;
-            border-radius: 40px;
-        }
         
     </style>
 </head>
@@ -113,11 +99,13 @@
         <div style="font-size: 20px; font-weight: 900; color: #f1c40f; letter-spacing: 2px;">MEMORY GAME</div>
         <div style="font-weight: bold;">⏳ <span id="timer-display">0</span>s</div>
     </div>
+    
+    <!-- 頂部不擋畫面的橫幅 -->
+    <div id="memory-banner">
+        👀 請記住卡片位置... 剩餘 <span id="preview-text">10</span> 秒！
+    </div>
 
     <div id="game-area">
-        <div id="preview-overlay">
-            <div id="preview-text">記憶時間 5...</div>
-        </div>
         <div class="memory-grid" id="grid"></div>
     </div>
 
@@ -148,6 +136,27 @@
         let msg = new SpeechSynthesisUtterance(word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
     }
 
+    // 📐 尋找最完美矩形矩陣的函數
+    function calculateOptimalColumns(totalCards) {
+        let bestCols = totalCards;
+        let bestDiff = totalCards;
+        
+        // 尋找因數中，寬高最接近，且列數 >= 行數的完美矩形組合
+        for (let c = 1; c <= totalCards; c++) {
+            if (totalCards % c === 0) {
+                let r = totalCards / c;
+                if (c >= r) { 
+                    let diff = c - r;
+                    if (diff < bestDiff) {
+                        bestDiff = diff;
+                        bestCols = c;
+                    }
+                }
+            }
+        }
+        return bestCols;
+    }
+
     function startGame() {
         config.typeA = document.getElementById('type-a').value;
         config.typeB = document.getElementById('type-b').value;
@@ -166,6 +175,11 @@
             cardsData.push({ pairId: item.english, html: getContent(item, config.typeA), type: config.typeA, fullItem: item });
             cardsData.push({ pairId: item.english, html: getContent(item, config.typeB), type: config.typeB, fullItem: item });
         });
+
+        // 取得總卡片數量，計算完美排版的行數
+        let totalCards = cardsData.length;
+        let optimalCols = calculateOptimalColumns(totalCards);
+        grid.style.gridTemplateColumns = `repeat(${optimalCols}, 1fr)`;
 
         cardsData.sort(() => 0.5 - Math.random());
 
@@ -186,27 +200,26 @@
     function startPreviewPhase() {
         lockBoard = true; 
         const cards = document.querySelectorAll('.memory-card');
-        const overlay = document.getElementById('preview-overlay');
+        const banner = document.getElementById('memory-banner');
         const text = document.getElementById('preview-text');
         
         cards.forEach(card => card.classList.add('flipped'));
-        overlay.style.display = 'flex';
+        banner.style.display = 'block'; // 顯示頂部橫幅
         
-        let countdown = 5;
-        text.innerText = `記憶時間 ${countdown}...`;
+        let countdown = 10; // 給予超長的 10 秒 Loading 與記憶時間
+        text.innerText = countdown;
 
         let previewTimer = setInterval(() => {
             countdown--;
             if (countdown > 0) {
-                text.innerText = `記憶時間 ${countdown}...`;
+                text.innerText = countdown;
             } else {
                 clearInterval(previewTimer);
-                text.innerText = "START!";
+                banner.style.display = 'none'; // 隱藏橫幅
                 
                 cards.forEach(card => card.classList.remove('flipped'));
                 
                 setTimeout(() => {
-                    overlay.style.display = 'none';
                     lockBoard = false; 
                     startTimer();
                 }, 800); 
