@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phonics Ninja - ITIP 2.0</title>
     <style>
-        /* 🚨 新增 touch-action: none; 徹底禁止白板拖曳與手勢干擾 */
+        /* 🚨 touch-action: none; 徹底禁止白板拖曳與手勢干擾 */
         body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; touch-action: none;}
 
         /* Header */
@@ -17,7 +17,7 @@
         .status-bar { display: flex; align-items: center; gap: 20px; }
         .time-board { font-size: 22px; font-weight: bold; color: #333; background: #f0f4f8; padding: 5px 15px; border-radius: 15px; border: 2px solid #ccc;}
         
-        /* 計分板 (支援單人與雙人) */
+        /* 計分板 */
         .score-board-single { font-size: 22px; font-weight: bold; color: #26890C; background: #e8f5e9; padding: 5px 15px; border-radius: 15px; display: none;}
         .score-board-vs { font-size: 22px; font-weight: bold; display: none; align-items: center; gap: 15px; background: #f8f9fa; padding: 5px 20px; border-radius: 15px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
         .score-red { color: #E21B3C; }
@@ -88,12 +88,18 @@
                 <option value="single">單人訓練 (獨自挑戰)</option>
             </select>
 
-            <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">📚 課程難度 (向下包容)：</label>
+            <!-- 🔥 新增：動態教材來源連動系統 -->
+            <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">📚 目前教材：</label>
+            <select id="source-book" onchange="updateModeOptions()">
+                <option value="1">Sounds Great 1</option>
+                <option value="2">Sounds Great 2</option>
+                <option value="3">Sounds Great 3</option>
+                <option value="4">Sounds Great 4</option>
+            </select>
+
+            <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">🎯 斬擊難度：</label>
             <select id="book-level">
-                <option value="1">Book 1 (只找開頭第一個字母)</option>
-                <option value="2">Book 2 (找單字中的任一單一字母)</option>
-                <option value="3">Book 3 (加入 a_e / i_e 等 Magic E)</option>
-                <option value="4" selected>Book 4 (完全拆解！包含 bl, ck, sh 等)</option>
+                <!-- 這裡的選項會隨著「目前教材」自動改變 -->
             </select>
             
             <button onclick="showWheel()" style="width:100%; padding:18px; background:#26890C; color:white; border:none; border-radius:15px; font-size:22px; font-weight:900; cursor:pointer;">🎡 抽取場景主題</button>
@@ -128,12 +134,10 @@
         <div class="status-bar">
             <div class="time-board">⏳ <span id="time">60</span>s</div>
             
-            <!-- 單人計分板 -->
             <div id="score-panel-single" class="score-board-single">
                 ⭐ 積分: <span id="score-single">0</span>
             </div>
             
-            <!-- 雙人計分板 -->
             <div id="score-panel-vs" class="score-board-vs">
                 <span class="score-red">Red: <span id="score-red-text">0</span></span>
                 ⚔️
@@ -146,7 +150,6 @@
 
     <!-- 遊戲區 -->
     <div id="game-container">
-        <!-- 雙人模式分隔線 -->
         <div id="vs-divider"></div>
 
         <div id="word-hint"></div>
@@ -176,7 +179,7 @@
     let currentWordObj = null; 
     let validTargets = []; 
     
-    let bookLevel = '4'; 
+    let bookLevel = '1'; // 這裡會動態抓取
     let playerMode = 'vs'; 
 
     let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
@@ -203,6 +206,46 @@
     const distractorsL4 = [...distractorsL3, "ch", "sh", "th", "wh", "ph", "ck", "ng", "bl", "cl", "fl", "gl", "pl", "sl", "br", "cr", "dr", "fr", "gr", "pr", "tr", "ai", "ee", "ea", "oa", "oo", "ou", "ow", "ar", "er", "ir", "or", "ur"];
 
     function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
+
+    // 🔥 智慧連動選單引擎
+    function updateModeOptions() {
+        const book = document.getElementById('source-book').value;
+        const modeSelect = document.getElementById('book-level');
+        modeSelect.innerHTML = ''; // 清空選項
+
+        const opt1 = '<option value="1">Level 1 (找開頭第一個字母)</option>';
+        const opt2 = '<option value="2">Level 2 (找單字中的任一單一字母)</option>';
+        const opt3 = '<option value="3">Level 3 (找 Magic E: a_e, i_e...)</option>';
+        const opt4 = '<option value="4">Level 4 (完全拆解: bl, ck, sh...)</option>';
+
+        if (book === '1') {
+            modeSelect.innerHTML = opt1;
+        } else if (book === '2') {
+            modeSelect.innerHTML = opt1 + opt2;
+        } else if (book === '3') {
+            modeSelect.innerHTML = opt1 + opt2 + opt3;
+        } else if (book === '4') {
+            modeSelect.innerHTML = opt1 + opt2 + opt4;
+        }
+    }
+
+    // 🔥 頁面載入時：自動偵測目前是哪一冊
+    function initSetup() {
+        let detectBook = '4'; // 預設最高難度
+        if (vocabData.length > 0) {
+            // 從圖片或音檔的路徑判斷來源是哪一冊
+            let sampleData = JSON.stringify(vocabData).toLowerCase();
+            if (sampleData.includes("book 1") || sampleData.includes("book_1") || sampleData.includes("book1")) detectBook = '1';
+            else if (sampleData.includes("book 2") || sampleData.includes("book_2") || sampleData.includes("book2")) detectBook = '2';
+            else if (sampleData.includes("book 3") || sampleData.includes("book_3") || sampleData.includes("book3")) detectBook = '3';
+            else if (sampleData.includes("book 4") || sampleData.includes("book_4") || sampleData.includes("book4")) detectBook = '4';
+        }
+        document.getElementById('source-book').value = detectBook;
+        updateModeOptions(); // 更新對應的難度選項
+    }
+    
+    // 初始化設定選單
+    initSetup();
 
     function showWheel() {
         bookLevel = document.getElementById('book-level').value;
@@ -336,6 +379,7 @@
         }, 1000);
 
         clearInterval(gameInterval);
+        
         let spawnRate = (playerMode === 'vs') ? 400 : 700; 
         gameInterval = setInterval(spawnBalloonsController, spawnRate); 
     }
@@ -400,7 +444,6 @@
         const propEmoji = activeTheme.props[Math.floor(Math.random() * activeTheme.props.length)];
         let fontSize = stringToShow.length > 1 ? "40px" : "60px";
 
-        // 將字串存在 dataset 方便給斬擊引擎讀取
         balloon.dataset.text = stringToShow;
 
         balloon.innerHTML = `
@@ -408,7 +451,6 @@
             <span style="font-size:${fontSize}; font-weight:900; text-shadow: 0 4px 8px rgba(0,0,0,0.8); color:white; margin-top: -20px; z-index:2;">${stringToShow}</span>
         `;
         
-        // 初始生成位置
         let minX = 10, maxX = 80; 
         if (spawnTeam === 'red') { minX = 5; maxX = 40; }
         if (spawnTeam === 'blue') { minX = 55; maxX = 90; }
@@ -416,7 +458,6 @@
         balloon.style.left = `${minX + Math.random() * (maxX - minX)}%`;
         balloon.style.animation = `floatUp ${4000 + Math.random() * 4000}ms linear forwards`;
         
-        // ⚔️ 電腦版：滑鼠按下或拖曳滑過皆可斬擊
         balloon.addEventListener('pointerdown', (e) => {
             handleSlash(e.clientX, e.clientY, balloon);
         });
@@ -428,7 +469,6 @@
         container.appendChild(balloon);
     }
 
-    // ⚔️ 觸控板/白板：專屬滑動斬擊引擎 (全域偵測)
     container.addEventListener('touchmove', (e) => {
         for(let i=0; i<e.changedTouches.length; i++) {
             let touch = e.changedTouches[i];
@@ -440,12 +480,9 @@
         }
     }, {passive: false});
 
-    // 🎯 核心斬擊與計分處理
     function handleSlash(x, y, balloon) {
-        // 防止重複觸發
         if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
         
-        // ⚖️ 左右半場計分邏輯：不看氣球是誰的，只看「你是在畫面的哪一邊切到它的」！
         let scoringTeam = 'single';
         if (playerMode === 'vs') {
             scoringTeam = (x < window.innerWidth / 2) ? 'red' : 'blue';
