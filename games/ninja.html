@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phonics Ninja - ITIP 2.0</title>
     <style>
-        /* 全域設定 */ 
-        body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none;}
+        /* 🚨 新增 touch-action: none; 徹底禁止白板拖曳與手勢干擾 */
+        body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; touch-action: none;}
 
         /* Header */
         .game-header { background: white; padding: 15px 30px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
@@ -58,7 +58,7 @@
         .balloon.popped { animation: pop 0.2s ease-out forwards !important; pointer-events: none; }
         @keyframes pop { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; filter: brightness(1.5); } 100% { transform: scale(0); opacity: 0; } }
 
-        .balloon.error { filter: grayscale(50%) hue-rotate(300deg); }
+        .balloon.error { filter: grayscale(50%) hue-rotate(300deg); pointer-events: none; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-15px) rotate(-15deg); } 75% { transform: translateX(15px) rotate(15deg); } }
 
         .float-text { position: absolute; font-size: 40px; font-weight: 900; pointer-events: none; animation: floatText 0.8s forwards; z-index: 100; text-shadow: 0 3px 0 white, 0 -3px 0 white, 3px 0 0 white, -3px 0 0 white; }
@@ -177,7 +177,7 @@
     let validTargets = []; 
     
     let bookLevel = '4'; 
-    let playerMode = 'vs'; // 'single' 或 'vs'
+    let playerMode = 'vs'; 
 
     let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
 
@@ -185,7 +185,7 @@
     const timeEl = document.getElementById('time');
     const wordHintEl = document.getElementById('word-hint');
 
-    // 🌟 發音家族字典 (維持高階混淆機制)
+    // 發音家族字典
     const phonicsFamilies = [
         ['bl', 'cl', 'fl', 'gl', 'pl', 'sl'], 
         ['br', 'cr', 'dr', 'fr', 'gr', 'pr', 'tr'], 
@@ -230,7 +230,6 @@
     function startGameLogic() {
         scores = { single: 0, red: 0, blue: 0 };
         
-        // 根據模式切換 UI
         if (playerMode === 'vs') {
             document.getElementById('score-panel-vs').style.display = 'flex';
             document.getElementById('score-panel-single').style.display = 'none';
@@ -337,9 +336,7 @@
         }, 1000);
 
         clearInterval(gameInterval);
-        
-        // 根據模式決定生成氣球的頻率
-        let spawnRate = (playerMode === 'vs') ? 400 : 700; // 雙人模式氣球生更快
+        let spawnRate = (playerMode === 'vs') ? 400 : 700; 
         gameInterval = setInterval(spawnBalloonsController, spawnRate); 
     }
 
@@ -386,17 +383,15 @@
         return distractor;
     }
 
-    // 控制器：決定產生單顆還是雙顆氣球
     function spawnBalloonsController() {
         if (playerMode === 'vs') {
-            // 隨機決定這次生在左邊還是右邊，確保兩邊數量大致平均
             Math.random() > 0.5 ? createBalloon('red') : createBalloon('blue');
         } else {
             createBalloon('single');
         }
     }
 
-    function createBalloon(team) {
+    function createBalloon(spawnTeam) {
         const balloon = document.createElement('div');
         balloon.className = 'balloon';
         
@@ -405,43 +400,75 @@
         const propEmoji = activeTheme.props[Math.floor(Math.random() * activeTheme.props.length)];
         let fontSize = stringToShow.length > 1 ? "40px" : "60px";
 
+        // 將字串存在 dataset 方便給斬擊引擎讀取
+        balloon.dataset.text = stringToShow;
+
         balloon.innerHTML = `
             <span style="font-size:90px; line-height: 1; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3));">${propEmoji}</span>
             <span style="font-size:${fontSize}; font-weight:900; text-shadow: 0 4px 8px rgba(0,0,0,0.8); color:white; margin-top: -20px; z-index:2;">${stringToShow}</span>
         `;
         
-        // 根據隊伍分配 X 軸範圍
-        let minX = 10, maxX = 80; // single
-        if (team === 'red') { minX = 5; maxX = 40; }
-        if (team === 'blue') { minX = 55; maxX = 90; }
+        // 初始生成位置
+        let minX = 10, maxX = 80; 
+        if (spawnTeam === 'red') { minX = 5; maxX = 40; }
+        if (spawnTeam === 'blue') { minX = 55; maxX = 90; }
         
         balloon.style.left = `${minX + Math.random() * (maxX - minX)}%`;
-        balloon.style.animation = `floatUp ${4000 + Math.random() * 4000}ms linear forwards`; // 雙人稍微飛快一點
+        balloon.style.animation = `floatUp ${4000 + Math.random() * 4000}ms linear forwards`;
         
+        // ⚔️ 電腦版：滑鼠按下或拖曳滑過皆可斬擊
         balloon.addEventListener('pointerdown', (e) => {
-            if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
-            
-            if (validTargets.includes(stringToShow.toLowerCase())) {
-                balloon.classList.add('popped');
-                updateScore(5, e.clientX, e.clientY, team);
-                playEffectSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-            } else {
-                balloon.style.animation = 'shake 0.4s ease';
-                balloon.classList.add('error');
-                updateScore(-2, e.clientX, e.clientY, team);
-                playEffectSound('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3');
-            }
+            handleSlash(e.clientX, e.clientY, balloon);
+        });
+        balloon.addEventListener('pointerenter', (e) => {
+            if (e.buttons > 0) handleSlash(e.clientX, e.clientY, balloon);
         });
         
         balloon.addEventListener('animationend', (e) => { if (e.animationName === 'floatUp') balloon.remove(); });
         container.appendChild(balloon);
     }
 
+    // ⚔️ 觸控板/白板：專屬滑動斬擊引擎 (全域偵測)
+    container.addEventListener('touchmove', (e) => {
+        for(let i=0; i<e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+            let target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if(target) {
+                let balloon = target.closest('.balloon');
+                if(balloon) handleSlash(touch.clientX, touch.clientY, balloon);
+            }
+        }
+    }, {passive: false});
+
+    // 🎯 核心斬擊與計分處理
+    function handleSlash(x, y, balloon) {
+        // 防止重複觸發
+        if (balloon.classList.contains('popped') || balloon.classList.contains('error')) return;
+        
+        // ⚖️ 左右半場計分邏輯：不看氣球是誰的，只看「你是在畫面的哪一邊切到它的」！
+        let scoringTeam = 'single';
+        if (playerMode === 'vs') {
+            scoringTeam = (x < window.innerWidth / 2) ? 'red' : 'blue';
+        }
+
+        let stringToShow = balloon.dataset.text;
+        
+        if (validTargets.includes(stringToShow.toLowerCase())) {
+            balloon.classList.add('popped');
+            updateScore(5, x, y, scoringTeam);
+            playEffectSound('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+        } else {
+            balloon.style.animation = 'shake 0.4s ease';
+            balloon.classList.add('error');
+            updateScore(-2, x, y, scoringTeam);
+            playEffectSound('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3');
+        }
+    }
+
     function updateScore(points, x, y, team) {
         scores[team] += points; 
         if (scores[team] < 0) scores[team] = 0; 
         
-        // 更新對應的計分板
         if (playerMode === 'vs') {
             if (team === 'red') document.getElementById('score-red-text').innerText = scores.red;
             if (team === 'blue') document.getElementById('score-blue-text').innerText = scores.blue;
@@ -449,7 +476,6 @@
             document.getElementById('score-single').innerText = scores.single;
         }
         
-        // 飄動的分數特效
         const floatText = document.createElement('div');
         let textClass = 'minus';
         if (points > 0) {
