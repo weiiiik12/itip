@@ -94,9 +94,10 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); padding: 5px; box-sizing: border-box; text-align: center;
         }
         
+        /* 這裡把蓋住的那一面字體放大一點點，讓編號更清楚 */
         .memory-front { 
-            background: linear-gradient(135deg, #1cb5e0, #000851); border: 2px solid #4facfe; color: rgba(255,255,255,0.8); font-size: 40px;
-            transform: rotateY(0deg); -webkit-transform: rotateY(0deg);
+            background: linear-gradient(135deg, #1cb5e0, #000851); border: 2px solid #4facfe; color: rgba(255,255,255,0.9); font-size: clamp(30px, 4vw, 50px);
+            transform: rotateY(0deg); -webkit-transform: rotateY(0deg); text-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
         .memory-back { 
             background: #1e272e; border: 2px solid #f1c40f; color: white;
@@ -267,15 +268,15 @@
 
         cardsData.sort(() => 0.5 - Math.random());
 
-        // 🌟 生成包含「雙層夾心結構」的新卡片
-        cardsData.forEach(data => {
+        // 🌟 這裡加入了自動編號：使用迴圈的 index 來產生 1, 2, 3... 填入 .memory-front 中
+        cardsData.forEach((data, index) => {
             let card = document.createElement('div');
             card.className = 'memory-card';
             card.dataset.pair = data.pairId;
             card.dataset.type = data.type;
             card.innerHTML = `
                 <div class="memory-inner">
-                    <div class="memory-front">?</div>
+                    <div class="memory-front">${index + 1}</div>
                     <div class="memory-back">${data.html}</div>
                 </div>
             `;
