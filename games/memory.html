@@ -14,13 +14,13 @@
         /* 遊戲區域 */
         #game-area { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; align-items: center; justify-content: center; position: relative;}
         
-        /* 動態自適應網格：單字再多都會自動換行往下排 */
+        /* 🛠️ 優化：動態自適應網格，放大卡片並強制換行，解決擁擠感 */
         .memory-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 15px;
-            width: 100%;
-            max-width: 1200px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* 最小寬度放大到 180px */
+            gap: 20px; /* 加大卡片間距 */
+            width: 95%; /* 讓網格有效利用兩側空間 */
+            max-width: 1400px;
             perspective: 1000px;
             padding-bottom: 50px;
         }
@@ -33,7 +33,6 @@
             transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
         }
 
-        /* 💡 終極修復閃爍：只要卡片翻開，立刻禁止任何滑鼠點擊事件 */
         .memory-card.flipped { transform: rotateY(180deg); pointer-events: none !important; }
         .memory-card.matched { transform: rotateY(180deg) scale(0.95); opacity: 0.7; pointer-events: none !important; }
 
@@ -55,13 +54,26 @@
         select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; }
         .start-btn { width: 100%; padding: 15px; font-size: 20px; background: #ff4757; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(255,71,87,0.4); }
         
-        /* 記憶時間倒數遮罩 */
+        /* 🛠️ 優化：記憶時間倒數遮罩移到畫面上方 */
         #preview-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center;
-            z-index: 50; flex-direction: column; color: white; pointer-events: none;
+            background: rgba(0,0,0,0.2); /* 背景調淡一點 */
+            display: none; 
+            flex-direction: column; 
+            justify-content: flex-start; /* 讓內容靠上方對齊 */
+            align-items: center; /* 水平置中 */
+            padding-top: 30px; /* 往下推一點點，不要完全貼緊邊緣 */
+            z-index: 50; pointer-events: none;
         }
-        #preview-text { font-size: 80px; font-weight: 900; color: #f1c40f; text-shadow: 0 5px 20px rgba(0,0,0,0.9); }
+        #preview-text { 
+            font-size: 50px; 
+            font-weight: 900; 
+            color: #f1c40f; 
+            text-shadow: 0 5px 15px rgba(0,0,0,0.8); 
+            background: rgba(0,0,0,0.65); /* 加上半透明黑底膠囊，讓字體更明顯 */
+            padding: 10px 40px;
+            border-radius: 40px;
+        }
         
     </style>
 </head>
@@ -116,7 +128,7 @@
     
     let config = { typeA: 'english', typeB: 'chinese' };
     let hasFlippedCard = false;
-    let lockBoard = true; // 預設鎖定，等記憶時間結束才開放
+    let lockBoard = true; 
     let firstCard, secondCard;
     let matchedPairs = 0;
     let totalPairs = vocabList.length;
@@ -150,13 +162,11 @@
         grid.innerHTML = '';
         let cardsData = [];
 
-        // 使用全部單字產生配對
         vocabList.forEach(item => {
             cardsData.push({ pairId: item.english, html: getContent(item, config.typeA), type: config.typeA, fullItem: item });
             cardsData.push({ pairId: item.english, html: getContent(item, config.typeB), type: config.typeB, fullItem: item });
         });
 
-        // 洗牌
         cardsData.sort(() => 0.5 - Math.random());
 
         cardsData.forEach(data => {
@@ -173,14 +183,12 @@
         });
     }
 
-    // 🌟 全新功能：遊戲開始前的 5 秒記憶時間
     function startPreviewPhase() {
-        lockBoard = true; // 鎖死版面
+        lockBoard = true; 
         const cards = document.querySelectorAll('.memory-card');
         const overlay = document.getElementById('preview-overlay');
         const text = document.getElementById('preview-text');
         
-        // 全部翻開
         cards.forEach(card => card.classList.add('flipped'));
         overlay.style.display = 'flex';
         
@@ -195,14 +203,13 @@
                 clearInterval(previewTimer);
                 text.innerText = "START!";
                 
-                // 全部蓋牌
                 cards.forEach(card => card.classList.remove('flipped'));
                 
                 setTimeout(() => {
                     overlay.style.display = 'none';
-                    lockBoard = false; // 解鎖版面，可以開始玩了！
+                    lockBoard = false; 
                     startTimer();
-                }, 800); // 等待翻牌動畫結束
+                }, 800); 
             }
         }, 1000);
     }
@@ -217,13 +224,11 @@
     }
 
     function flipCard() {
-        // 嚴格阻擋：如果鎖定中、或是點到同一張牌，直接無視
         if (lockBoard) return;
         if (this === firstCard) return;
 
         this.classList.add('flipped');
 
-        // 如果是點擊聲音卡片，發出聲音
         if (this.dataset.type === 'audio') {
             let item = vocabList.find(x => x.english === this.dataset.pair);
             if (item && item.audio_URL) {
@@ -234,19 +239,16 @@
         }
 
         if (!hasFlippedCard) {
-            // 第一次點擊
             hasFlippedCard = true;
             firstCard = this;
             return;
         }
 
-        // 第二次點擊
         secondCard = this;
         checkForMatch();
     }
 
     function checkForMatch() {
-        // 兩張都翻開了，先鎖住版面，避免玩家這時候亂點其他卡片
         lockBoard = true; 
         
         let isMatch = firstCard.dataset.pair === secondCard.dataset.pair;
@@ -269,7 +271,7 @@
                     document.getElementById('game-over-screen').style.display = 'flex';
                 }, 500);
             }
-        }, 400); // 稍微延遲一下，讓玩家看清楚配對成功的兩張牌
+        }, 400); 
     }
 
     function unflipCards() {
@@ -279,7 +281,7 @@
             firstCard.classList.remove('flipped');
             secondCard.classList.remove('flipped');
             resetBoard();
-        }, 1200); // 給玩家 1.2 秒的時間看清楚錯誤的牌，然後再蓋起來
+        }, 1200); 
     }
 
     function resetBoard() {
