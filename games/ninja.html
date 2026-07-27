@@ -88,6 +88,14 @@
                 <option value="single">單人訓練 (獨自挑戰)</option>
             </select>
 
+            <label id="book-label" style="display:none; font-weight:bold; font-size: 18px; margin-bottom: 10px;">📚 目前教材：</label>
+            <select id="source-book" style="display:none;" onchange="updateModeOptions()">
+                <option value="1">Sounds Great 1</option>
+                <option value="2">Sounds Great 2</option>
+                <option value="3">Sounds Great 3</option>
+                <option value="4">Sounds Great 4</option>
+            </select>
+
             <label style="display:block; font-weight:bold; font-size: 18px; margin-bottom: 10px;">🎯 斬擊難度：</label>
             <select id="book-level">
                 <!-- 這裡的選項會根據「無痕路徑偵測」自動生成！ -->
@@ -170,7 +178,7 @@
     let currentWordObj = null; 
     let validTargets = []; 
     
-    let bookLevel = '4'; // 預設值，會被無痕引擎覆寫
+    let bookLevel = '4'; 
     let playerMode = 'vs'; 
 
     let gameInterval = null, timerInterval = null, wordTimerInterval = null, hintTimeout = null;
@@ -197,11 +205,30 @@
 
     function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
 
-    // 🕵️ 隱形偵測引擎：從使用者的「路徑紀錄」自動抓取冊數
+    function updateModeOptions() {
+        const book = document.getElementById('source-book').value;
+        const modeSelect = document.getElementById('book-level');
+        modeSelect.innerHTML = ''; 
+
+        const opt1 = '<option value="1">Level 1 (找開頭第一個字母)</option>';
+        const opt2 = '<option value="2">Level 2 (找單字中的任一單一字母)</option>';
+        const opt3 = '<option value="3" selected>Level 3 (只找 Magic E: a_e, i_e...)</option>';
+        const opt4 = '<option value="4" selected>Level 4 (只找複合字: bl, ck, sh...)</option>';
+
+        if (book === '1') {
+            modeSelect.innerHTML = opt1;
+        } else if (book === '2') {
+            modeSelect.innerHTML = opt1 + opt2;
+        } else if (book === '3') {
+            modeSelect.innerHTML = opt1 + opt2 + opt3;
+        } else if (book === '4') {
+            modeSelect.innerHTML = opt1 + opt2 + opt4;
+        }
+    }
+
     function initSetup() {
-        let detectBook = '4'; // 預設全開
+        let detectBook = '4'; 
         
-        // 將所有可能包含路徑資訊的地方全部抓出來轉小寫 (網址 + 上一頁 + sessionStorage + 單字庫)
         let pathInfo = (
             window.location.href + 
             (document.referrer || "") + 
@@ -209,33 +236,15 @@
             JSON.stringify(vocabData)
         ).toLowerCase();
         
-        // 地毯式搜索比對
         if (pathInfo.match(/(book\s*1|book_1|book-1|book1|\/b1\/|level\s*1|sounds great\s*1)/i)) detectBook = '1';
         else if (pathInfo.match(/(book\s*2|book_2|book-2|book2|\/b2\/|level\s*2|sounds great\s*2)/i)) detectBook = '2';
         else if (pathInfo.match(/(book\s*3|book_3|book-3|book3|\/b3\/|level\s*3|sounds great\s*3)/i)) detectBook = '3';
         else if (pathInfo.match(/(book\s*4|book_4|book-4|book4|\/b4\/|level\s*4|sounds great\s*4)/i)) detectBook = '4';
         
-        // 根據偵測結果，動態生成專屬難度選單
-        const modeSelect = document.getElementById('book-level');
-        modeSelect.innerHTML = ''; 
-
-        const opt1 = '<option value="1">Level 1 (找開頭第一個字母)</option>';
-        const opt2 = '<option value="2">Level 2 (找單字中的任一單一字母)</option>';
-        const opt3 = '<option value="3">Level 3 (找 Magic E: a_e, i_e...)</option>';
-        const opt4 = '<option value="4">Level 4 (完全拆解: bl, ck, sh...)</option>';
-
-        if (detectBook === '1') {
-            modeSelect.innerHTML = opt1;
-        } else if (detectBook === '2') {
-            modeSelect.innerHTML = opt1 + opt2;
-        } else if (detectBook === '3') {
-            modeSelect.innerHTML = opt1 + opt2 + opt3;
-        } else if (detectBook === '4') {
-            modeSelect.innerHTML = opt1 + opt2 + opt4;
-        }
+        document.getElementById('source-book').value = detectBook;
+        updateModeOptions(); 
     }
     
-    // 初始化設定選單
     initSetup();
 
     function showWheel() {
@@ -309,30 +318,36 @@
         document.getElementById('game-over-screen').style.display = 'flex';
     }
 
+    // 🔥 終極大腦：根據難度嚴格篩選得分目標
     function getValidTargets(word, level) {
         let w = word.toLowerCase();
+        
+        // Level 1: 只找第一個字母
         if (level === '1') return [w.charAt(0)];
+        
+        // Level 2: 找所有單一字母
         if (level === '2') return w.split('');
         
-        let res = [];
-        let magicEMatch = w.match(/^(.*)([aeiou])([^aeiou])e$/);
-        let remainStr = w;
-        
-        if (magicEMatch) {
-            remainStr = magicEMatch[1]; 
-            res.push(magicEMatch[2] + "_e"); 
-            res.push(magicEMatch[3]);        
-        }
-
+        // Level 3: 嚴格只找 Magic E (a_e, i_e...)
         if (level === '3') {
-            if (remainStr) res.push(...remainStr.split(''));
-            return res;
+            let magicEMatch = w.match(/([aeiou])[^aeiou]e/);
+            if (magicEMatch) {
+                return [magicEMatch[1] + "_e"];
+            }
+            // 防呆：萬一題目沒有 Magic E，退回找母音
+            let vMatch = w.match(/[aeiou]/);
+            return vMatch ? [vMatch[0]] : [w.charAt(0)];
         }
 
+        // Level 4: 嚴格只找複合音 (bl, cl, ea, ck...)
         if (level === '4') {
-            const advancedRegex = /(sch|scr|shr|spl|spr|squ|str|thr|dge|tch|ch|sh|th|wh|ph|ck|ng|nk|bl|cl|fl|gl|pl|sl|br|cr|dr|fr|gr|pr|tr|sm|sn|sp|st|sw|tw|ai|ay|ee|ea|ie|oa|oe|ue|oo|ou|ow|oi|oy|aw|au|ew|ar|er|ir|or|ur|[a-z])/g;
-            let chunks = remainStr.match(advancedRegex) || [];
-            return [...chunks, ...res]; 
+            const advancedRegex = /(sch|scr|shr|spl|spr|squ|str|thr|dge|tch|ch|sh|th|wh|ph|ck|ng|nk|bl|cl|fl|gl|pl|sl|br|cr|dr|fr|gr|pr|tr|sm|sn|sp|st|sw|tw|ai|ay|ee|ea|ie|oa|oe|ue|oo|ou|ow|oi|oy|aw|au|ew|ar|er|ir|or|ur)/g;
+            let chunks = w.match(advancedRegex) || [];
+            if (chunks.length > 0) {
+                return [...new Set(chunks)]; // 回傳乾淨的複合音陣列
+            }
+            // 防呆：萬一題目沒有複合音，退回找字首
+            return [w.charAt(0)];
         }
     }
 
