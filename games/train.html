@@ -2,148 +2,240 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>字母火車競賽 - ITIP 1.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A-Z Alphabet Train</title>
     <style>
-        body { margin: 0; background: #87CEEB; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* 標題與設定 (新增：與其他遊戲統一的 Header) */
-        .game-header { 
-            background: white; padding: 10px 20px; display: flex; 
-            justify-content: space-between; align-items: center; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; 
+        /* 🚨 鎖死邊界，嚴防裁切與滾動 */
+        body { 
+            background-color: #1e272e; font-family: 'Segoe UI', sans-serif; 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; 
+            overflow: hidden; user-select: none; touch-action: none;
         }
-        .back-btn { padding: 8px 15px; border-radius: 20px; border: 1px solid #ccc; background: white; cursor: pointer; font-weight: bold; transition: 0.2s;}
-        .back-btn:hover { background: #f0f0f0; }
 
-        /* 彈窗樣式 (共用) */
-        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:999; display:flex; justify-content:center; align-items:center; }
-        .modal-content { background: white; padding: 40px; border-radius: 30px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        
-        #game-arena { flex-grow: 1; display: flex; padding: 10px; gap: 10px; height: 100%; }
-        .team-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .team-box { width: 95%; height: 55vh; border: 4px solid #333; border-radius: 20px; background: rgba(255,255,255,0.4); padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        
-        .train-tracks { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 10px; }
-        .car-empty { width: 45px; height: 55px; border: 2px dashed #666; background: #eee; border-radius: 5px; display: flex; justify-content: center; align-items: center; }
-        .car-filled { width: 45px; height: 55px; border: 2px solid #333; background: #FFD700; display: flex; justify-content: center; align-items: center; font-size: 25px; font-weight: bold; border-radius: 5px; }
+        /* 標題區 */
+        .game-header { 
+            background: rgba(0, 0, 0, 0.6); padding: 10px 20px; display: flex; 
+            justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+            z-index: 10; border-bottom: 2px solid #333; color: white; flex-shrink: 0;
+        }
+        .back-btn { padding: 8px 15px; border-radius: 20px; border: none; background: rgba(255,255,255,0.2); color: white; cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .back-btn:hover { background: rgba(255,255,255,0.4); }
 
-        .pond { width: 95%; height: 35vh; background: #e0f7fa; border: 3px solid #00796b; border-radius: 15px; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px; margin-top: 10px; }
-        .letter-btn { width: 55px; height: 55px; background: #ff9800; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 28px; font-weight: bold; }
-        .error { animation: shake 0.3s; background: #ff3366 !important; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        /* 雙人對戰區容器 */
+        #arena {
+            flex-grow: 1; display: flex; width: 100%; min-height: 0; /* min-height:0 是防止被內容撐開的終極關鍵 */
+            padding: 10px; box-sizing: border-box; gap: 15px; background: #0f1722;
+        }
+
+        /* 單邊隊伍區塊 */
+        .team-board {
+            flex: 1; display: flex; flex-direction: column; min-height: 0;
+            border-radius: 20px; border: 5px solid; padding: 15px; gap: 15px;
+            background: linear-gradient(to bottom, #ffffff, #f0f4f8);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05), 0 10px 20px rgba(0,0,0,0.3);
+        }
+        #board-red { border-color: #ff4757; }
+        #board-blue { border-color: #1e90ff; }
+
+        /* 隊伍標題 */
+        .team-title {
+            text-align: center; font-size: 28px; font-weight: 900; margin: 0; padding-bottom: 10px;
+            border-bottom: 3px dashed #ccc; display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        #board-red .team-title { color: #ff4757; }
+        #board-blue .team-title { color: #1e90ff; }
+
+        /* 🚂 13x2 火車車廂區 (絕對排版，保證一行13個) */
+        .train-track {
+            display: grid;
+            grid-template-columns: repeat(13, 1fr); /* 嚴格鎖死 13 欄 */
+            gap: 5px;
+            flex-shrink: 0; /* 車廂區不准被壓縮 */
+        }
+
+        .train-slot {
+            aspect-ratio: 1; border: 2px dashed #bdc3c7; border-radius: 8px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: clamp(14px, 2vw, 24px); font-weight: 900; background: #ecf0f1;
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.1); color: #2c3e50;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .train-slot.filled {
+            background: #ffeaa7; border-style: solid; border-color: #f1c40f;
+            transform: scale(1.1); box-shadow: 0 4px 10px rgba(241, 196, 15, 0.4); color: #d35400;
+        }
+
+        /* 🔡 底部 26 個字母按鈕區 (自適應縮放，絕不裁切) */
+        .keyboard {
+            flex-grow: 1; display: grid;
+            grid-template-columns: repeat(7, 1fr); /* 7欄 x 4列，剛好裝下 28 格空間 (26個字母) */
+            gap: clamp(5px, 1vw, 10px);
+            align-content: start; justify-items: center;
+            overflow-y: auto; padding-top: 10px;
+        }
+
+        .key-btn {
+            width: 100%; aspect-ratio: 1; max-width: 60px; max-height: 60px; /* 限制最大不要太大 */
+            border-radius: 50%; font-size: clamp(18px, 2.5vw, 28px); font-weight: 900;
+            color: white; border: none; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            transition: all 0.1s;
+        }
+
+        /* 紅隊立體按鈕 */
+        #board-red .key-btn { background: #ff6b81; box-shadow: 0 6px 0 #ff4757, 0 8px 10px rgba(0,0,0,0.2); text-shadow: 1px 1px 2px #ff4757;}
+        #board-red .key-btn:active { transform: translateY(6px); box-shadow: 0 0 0 #ff4757; }
+
+        /* 藍隊立體按鈕 */
+        #board-blue .key-btn { background: #7bed9f; box-shadow: 0 6px 0 #2ed573, 0 8px 10px rgba(0,0,0,0.2); color: #2f3542; text-shadow: 1px 1px 2px #fff;}
+        #board-blue .key-btn:active { transform: translateY(6px); box-shadow: 0 0 0 #2ed573; }
+
+        /* 錯誤震動與隱藏 */
+        .error-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; background: #a4b0be !important; box-shadow: 0 6px 0 #747d8c !important; color: #fff !important; }
+        .hidden-key { visibility: hidden; pointer-events: none; }
+
+        @keyframes shake { 10%, 90% { transform: translateX(-3px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-6px); } 40%, 60% { transform: translateX(6px); } }
+
+        /* 勝利彈窗 */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; flex-direction:column; justify-content:center; align-items:center; z-index:2000;}
+        .win-title { font-size: 80px; font-weight: 900; margin-bottom: 20px; text-shadow: 0 5px 20px rgba(255,255,255,0.4); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .restart-btn { padding: 15px 40px; font-size: 24px; font-weight: bold; background: #f1c40f; color: #333; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(241,196,15,0.4); }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
     </style>
 </head>
 <body>
 
-    <!-- 頂部資訊 (新增) -->
     <div class="game-header">
         <button class="back-btn" onclick="window.history.back()">⭠ 返回</button>
-        <div style="font-size: 20px; font-weight: 900; color: #333; letter-spacing: 2px;">ALPHABET TRAIN</div>
+        <div style="font-size: 22px; font-weight: 900; color: #f1c40f; letter-spacing: 3px;">🚂 ALPHABET SPEED TRAIN 🚂</div>
         <div style="width: 80px;"></div>
     </div>
 
-    <!-- 開始選單 -->
-    <div id="start-overlay" class="modal">
-        <div class="modal-content">
-            <h2 style="font-size:30px;">🚂 字母火車準備出發！</h2>
-            <select id="mode-select" style="padding:10px; font-size:16px;"><option value="coop">合作模式</option><option value="vs">競賽模式</option></select>
-            <select id="case-select" style="padding:10px; font-size:16px;"><option value="upper">大寫 A-Z</option><option value="lower">小寫 a-z</option></select>
-            <br><br><button onclick="startGame()" style="padding:15px 40px; font-size:20px; cursor:pointer; background:#ff3366; color:white; border:none; border-radius:10px;">開始比賽！</button>
+    <div id="arena">
+        <!-- 紅隊版面 -->
+        <div class="team-board" id="board-red">
+            <div class="team-title">🚂 紅隊 (Red Team)</div>
+            <div class="train-track" id="track-red"></div>
+            <div class="keyboard" id="keys-red"></div>
+        </div>
+
+        <!-- 藍隊版面 -->
+        <div class="team-board" id="board-blue">
+            <div class="team-title">🚂 藍隊 (Blue Team)</div>
+            <div class="train-track" id="track-blue"></div>
+            <div class="keyboard" id="keys-blue"></div>
         </div>
     </div>
 
-    <!-- 結束畫面 -->
-    <div id="finish-overlay" class="modal" style="display:none;">
-        <div class="modal-content">
-            <div style="font-size:80px;">🏆</div>
-            <h2 id="winner-text" style="font-size:40px;">獲勝！</h2>
-            <p id="time-text" style="font-size:24px; color:#555;"></p>
-            
-            <button onclick="goBack()" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#95a5a6; color:white; border:none; border-radius:10px;">返回教材頁</button>
-            <button onclick="location.reload()" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#27ae60; color:white; border:none; border-radius:10px; margin-left:10px;">再玩一次</button>
-        </div>
+    <!-- 勝利畫面 -->
+    <div id="win-screen" class="modal">
+        <div id="win-msg" class="win-title"></div>
+        <button class="restart-btn" onclick="location.reload()">🔄 再戰一局</button>
     </div>
 
-    <div id="game-arena">
-        <div class="team-container" id="red-side">
-            <div class="team-box"><h2 style="color:red; margin: 0 0 10px 0;">🚂 紅隊</h2><div class="train-tracks" id="tracks-red"></div></div>
-            <div class="pond" id="pond-red"></div>
-        </div>
-        <div class="team-container" id="blue-side">
-            <div class="team-box"><h2 style="color:blue; margin: 0 0 10px 0;">🚂 藍隊</h2><div class="train-tracks" id="tracks-blue"></div></div>
-            <div class="pond" id="pond-blue"></div>
-        </div>
-    </div>
+<script>
+    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    let progress = { red: 0, blue: 0 };
+    let isGameOver = false;
 
-    <script>
-        let currentAlphabet, gameStarted = false, startTime;
-        let finished = { red: false, blue: false };
+    // 音效
+    const soundCorrect = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+    const soundWrong = new Audio('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3');
+    const soundWin = new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3');
 
-        function startGame() {
-            const mode = document.getElementById('mode-select').value;
-            const caseType = document.getElementById('case-select').value;
-            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-            currentAlphabet = (caseType === 'upper') ? alphabet : alphabet.map(c => c.toLowerCase());
-            
-            // 初始化軌道
-            ['red', 'blue'].forEach(t => {
-                const tr = document.getElementById('tracks-' + t);
-                tr.innerHTML = '<div class="car-empty">🚂</div>';
-                for(let i=0; i<26; i++) tr.innerHTML += `<div class="car-empty" id="${t}-car-${i}"></div>`;
-            });
-            
-            document.getElementById('blue-side').style.display = (mode === 'coop') ? 'none' : 'flex';
-            document.getElementById('start-overlay').style.display = 'none';
-            
-            startTime = new Date();
-            gameStarted = true;
-            renderPond('red');
-            if(mode === 'vs') renderPond('blue');
+    function initGame() {
+        buildBoard('red');
+        buildBoard('blue');
+    }
+
+    function buildBoard(team) {
+        const track = document.getElementById(`track-${team}`);
+        const keyboard = document.getElementById(`keys-${team}`);
+        
+        // 1. 建立 26 個火車車廂
+        for(let i = 0; i < 26; i++) {
+            let slot = document.createElement('div');
+            slot.className = 'train-slot';
+            slot.id = `slot-${team}-${i}`;
+            // 第一個車廂放個火車頭提示
+            if(i === 0) slot.innerHTML = "🚂";
+            track.appendChild(slot);
         }
 
-        function renderPond(team) {
-            const pond = document.getElementById('pond-' + team);
-            let shuffled = [...currentAlphabet].sort(() => Math.random() - 0.5);
-            shuffled.forEach(char => {
-                const btn = document.createElement('div');
-                btn.className = 'letter-btn';
-                btn.innerText = char;
-                btn.onclick = (e) => handleLetterClick(char, team, e.target);
-                pond.appendChild(btn);
+        // 2. 建立 26 個打亂的字母按鈕
+        let shuffled = [...ALPHABET].sort(() => Math.random() - 0.5);
+        shuffled.forEach(letter => {
+            let btn = document.createElement('button');
+            btn.className = 'key-btn';
+            btn.innerText = letter;
+            
+            // 綁定點擊與觸控事件
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                handleKeyPress(team, letter, btn);
             });
-        }
+            keyboard.appendChild(btn);
+        });
+    }
 
-        let scores = { red: 0, blue: 0 };
-        function handleLetterClick(char, team, btn) {
-            if(!gameStarted) return;
-            if (char === currentAlphabet[scores[team]]) {
-                const car = document.getElementById(`${team}-car-${scores[team]}`);
-                car.className = 'car-filled';
-                car.innerText = char;
-                new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3').play();
-                scores[team]++;
-                btn.style.visibility = 'hidden';
-                
-                if (scores[team] === 26) {
-                    showFinish(team);
-                }
+    function handleKeyPress(team, letter, btnElement) {
+        if (isGameOver) return;
+
+        let currentTargetIndex = progress[team];
+        let targetLetter = ALPHABET[currentTargetIndex];
+
+        // 判斷是否點中「正確順序」的字母
+        if (letter === targetLetter) {
+            // 答對了！
+            soundCorrect.currentTime = 0; soundCorrect.play().catch(()=>{});
+            
+            // 隱藏按鈕
+            btnElement.classList.add('hidden-key');
+            
+            // 把字母填入對應的火車車廂
+            let slot = document.getElementById(`slot-${team}-${currentTargetIndex}`);
+            slot.innerText = letter;
+            slot.classList.add('filled');
+
+            // 進度 +1
+            progress[team]++;
+
+            // 檢查是否獲勝 (A-Z 26個字全部找完)
+            if (progress[team] === 26) {
+                declareWinner(team);
             } else {
-                btn.classList.add('error');
-                new Audio('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3').play();
-                setTimeout(() => btn.classList.remove('error'), 300);
+                // 如果這節車廂填滿了，幫下一個車廂加上火車頭圖示引導
+                let nextSlot = document.getElementById(`slot-${team}-${progress[team]}`);
+                nextSlot.innerHTML = "🚂";
             }
+        } else {
+            // 答錯了！震動特效
+            soundWrong.currentTime = 0; soundWrong.play().catch(()=>{});
+            btnElement.classList.remove('error-shake');
+            void btnElement.offsetWidth; // 觸發重置動畫
+            btnElement.classList.add('error-shake');
         }
+    }
 
-        function showFinish(winner) {
-            gameStarted = false;
-            const duration = Math.floor((new Date() - startTime) / 1000);
-            document.getElementById('winner-text').innerText = (winner === 'red' ? "紅隊" : "藍隊") + " 獲勝！";
-            document.getElementById('time-text').innerText = `總耗時：${duration} 秒`;
-            document.getElementById('finish-overlay').style.display = 'flex';
+    function declareWinner(winningTeam) {
+        isGameOver = true;
+        soundWin.play().catch(()=>{});
+        const winScreen = document.getElementById('win-screen');
+        const winMsg = document.getElementById('win-msg');
+        
+        if (winningTeam === 'red') {
+            winMsg.innerHTML = "<span style='color:#ff4757;'>🎉 紅隊率先抵達終點！ 🎉</span>";
+        } else {
+            winMsg.innerHTML = "<span style='color:#1e90ff;'>🎉 藍隊率先抵達終點！ 🎉</span>";
         }
-        function goBack() {
-            window.location.href = '../index.html?return=games';
-        }
-    </script>
+        
+        winScreen.style.display = 'flex';
+    }
+
+    // 啟動遊戲
+    initGame();
+</script>
 </body>
 </html>
