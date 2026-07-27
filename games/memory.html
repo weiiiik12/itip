@@ -5,35 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Memory Game - ITIP 1.0</title>
     <style>
+        /* 鎖死 Body，絕對禁止任何捲軸出現 */
         body { background-color: #141e30; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; color: white;}
         
         .game-header { background: rgba(0, 0, 0, 0.5); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 10; border-bottom: 2px solid #333;}
         .back-btn { padding: 8px 15px; border-radius: 20px; border: none; background: rgba(255,255,255,0.2); color: white; cursor: pointer; font-weight: bold; transition: 0.2s;}
         .back-btn:hover { background: rgba(255,255,255,0.4); }
 
-        /* 記憶時間專屬頂部橫幅 (絕對不會擋到卡片) */
+        /* 🔥 回合指示器 */
+        #turn-indicator {
+            text-align: center; padding: 10px; font-size: 24px; font-weight: 900; 
+            background: rgba(0,0,0,0.3); letter-spacing: 1px; transition: all 0.3s ease; flex-shrink: 0;
+        }
+        .turn-red { color: #ff4757; text-shadow: 0 0 10px rgba(255, 71, 87, 0.5); }
+        .turn-blue { color: #1e90ff; text-shadow: 0 0 10px rgba(30, 144, 255, 0.5); }
+
+        /* 🔥 記憶時間專屬頂部橫幅 (跟著Flex排隊，絕不擋畫面) */
         #memory-banner {
             display: none; background: #ff4757; color: white; text-align: center; 
-            padding: 12px; font-size: 24px; font-weight: 900; letter-spacing: 2px;
-            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5); z-index: 9;
+            padding: 10px; font-size: 24px; font-weight: 900; letter-spacing: 2px;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5); z-index: 9; flex-shrink: 0;
         }
 
-        /* 遊戲區域 */
-        #game-area { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; align-items: center; justify-content: center; position: relative;}
+        /* 遊戲區域：嚴格限制高度 */
+        #game-area { 
+            flex-grow: 1; 
+            padding: 12px 20px; 
+            overflow: hidden; /* 終極防線：禁止滾動 */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+            box-sizing: border-box;
+        }
         
-        /* 網格系統：移除 auto-fit，改由 JS 動態計算最完美的絕對矩形 */
+        /* 🛠️ 全新網格系統：高度與寬度都會自動撐滿父容器 */
         .memory-grid {
             display: grid;
-            gap: 15px;
-            width: 95%;
-            max-width: 1400px;
-            margin: 0 auto;
-            perspective: 1000px;
-            padding-bottom: 20px;
+            gap: 10px;
+            width: 100%;
+            height: 100%; /* 強制聽從 game-area 的高度 */
+            max-width: 1600px;
+            box-sizing: border-box;
         }
 
         .memory-card {
-            aspect-ratio: 4/3;
+            width: 100%;
+            height: 100%;
+            min-height: 0; /* Flex/Grid 子元素收縮關鍵 */
+            min-width: 0;
             cursor: pointer;
             position: relative;
             transform-style: preserve-3d;
@@ -51,9 +71,10 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); padding: 5px; box-sizing: border-box; text-align: center;
         }
         
-        .memory-front { background: linear-gradient(135deg, #1cb5e0, #000851); border: 2px solid #4facfe; color: rgba(255,255,255,0.8); font-size: 50px;}
+        .memory-front { background: linear-gradient(135deg, #1cb5e0, #000851); border: 2px solid #4facfe; color: rgba(255,255,255,0.8); font-size: 40px;}
         .memory-back { background: #1e272e; transform: rotateY(180deg); border: 2px solid #f1c40f; color: white;}
-        .memory-back img { max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; border-radius: 8px;}
+        /* 圖片會自動縮放，不用擔心卡片變形 */
+        .memory-back img { max-width: 85%; max-height: 85%; object-fit: contain; pointer-events: none; border-radius: 8px;}
 
         /* 設定彈窗 */
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; display:flex; flex-direction:column; justify-content:center; align-items:center; color: #333; }
@@ -88,7 +109,7 @@
     </div>
 
     <div id="game-over-screen" class="modal" style="display:none; color: white;">
-        <h1 style="font-size: 70px; margin-bottom: 10px; text-shadow: 0 5px 20px rgba(255,255,255,0.3);">🎉 挑戰成功 🎉</h1>
+        <h1 id="winner-text" style="font-size: 70px; margin-bottom: 10px; text-shadow: 0 5px 20px rgba(255,255,255,0.3);"></h1>
         <p id="win-time" style="font-size: 24px; color: #ccc; margin-bottom: 40px;"></p>
         <button class="start-btn" style="max-width: 300px; background: #1e90ff;" onclick="window.location.href='../index.html?return=games'">返回大廳</button>
         <button class="start-btn" style="max-width: 300px; background: #2ed573; margin-top: 15px;" onclick="location.reload()">再戰一局</button>
@@ -97,12 +118,24 @@
     <div class="game-header">
         <button class="back-btn" onclick="window.location.href='../index.html?return=games'">⭠ 返回目錄</button>
         <div style="font-size: 20px; font-weight: 900; color: #f1c40f; letter-spacing: 2px;">MEMORY GAME</div>
+        
+        <div style="display: flex; gap: 20px; font-size: 22px; font-weight: bold; background: rgba(255,255,255,0.1); padding: 5px 20px; border-radius: 15px;">
+            <span id="score-red" style="color: #ff4757;">Red: 0</span>
+            <span>⚔️</span>
+            <span id="score-blue" style="color: #1e90ff;">Blue: 0</span>
+        </div>
+
         <div style="font-weight: bold;">⏳ <span id="timer-display">0</span>s</div>
     </div>
     
-    <!-- 頂部不擋畫面的橫幅 -->
+    <!-- 頂部不擋畫面的記憶橫幅 -->
     <div id="memory-banner">
         👀 請記住卡片位置... 剩餘 <span id="preview-text">10</span> 秒！
+    </div>
+
+    <!-- 回合指示器 -->
+    <div id="turn-indicator" class="turn-red" style="display: none;">
+        👉 現在輪到：紅隊 (Red Team) 👈
     </div>
 
     <div id="game-area">
@@ -122,6 +155,9 @@
     let totalPairs = vocabList.length;
     let startTime;
     let gameTimer;
+    
+    let currentTeam = 'red';
+    let scores = { red: 0, blue: 0 };
 
     function fixPath(url) { return (!url || url.startsWith('http') || url.startsWith('../') || url.startsWith('/')) ? url : '../' + url; }
     
@@ -136,25 +172,26 @@
         let msg = new SpeechSynthesisUtterance(word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
     }
 
-    // 📐 尋找最完美矩形矩陣的函數
-    function calculateOptimalColumns(totalCards) {
+    // 🔥 終極算法：同時給出完美的列數與行數
+    function calculateOptimalGrid(totalCards) {
         let bestCols = totalCards;
+        let bestRows = 1;
         let bestDiff = totalCards;
         
-        // 尋找因數中，寬高最接近，且列數 >= 行數的完美矩形組合
         for (let c = 1; c <= totalCards; c++) {
             if (totalCards % c === 0) {
                 let r = totalCards / c;
-                if (c >= r) { 
+                if (c >= r) { // 讓欄數 >= 列數 (符合寬螢幕)
                     let diff = c - r;
                     if (diff < bestDiff) {
                         bestDiff = diff;
                         bestCols = c;
+                        bestRows = r;
                     }
                 }
             }
         }
-        return bestCols;
+        return { cols: bestCols, rows: bestRows };
     }
 
     function startGame() {
@@ -162,8 +199,28 @@
         config.typeB = document.getElementById('type-b').value;
         document.getElementById('setup-screen').style.display = 'none';
 
+        scores = { red: 0, blue: 0 };
+        currentTeam = 'red';
+        updateScoreUI();
+
         buildGrid();
         startPreviewPhase();
+    }
+
+    function updateScoreUI() {
+        document.getElementById('score-red').innerText = `Red: ${scores.red}`;
+        document.getElementById('score-blue').innerText = `Blue: ${scores.blue}`;
+    }
+
+    function updateTurnUI() {
+        const indicator = document.getElementById('turn-indicator');
+        if (currentTeam === 'red') {
+            indicator.className = 'turn-red';
+            indicator.innerText = '👉 現在輪到：紅隊 (Red Team) 👈';
+        } else {
+            indicator.className = 'turn-blue';
+            indicator.innerText = '👉 現在輪到：藍隊 (Blue Team) 👈';
+        }
     }
 
     function buildGrid() {
@@ -176,10 +233,13 @@
             cardsData.push({ pairId: item.english, html: getContent(item, config.typeB), type: config.typeB, fullItem: item });
         });
 
-        // 取得總卡片數量，計算完美排版的行數
+        // 取得總卡片數量，計算最完美、絕對不會落單的行與列
         let totalCards = cardsData.length;
-        let optimalCols = calculateOptimalColumns(totalCards);
-        grid.style.gridTemplateColumns = `repeat(${optimalCols}, 1fr)`;
+        let optimal = calculateOptimalGrid(totalCards);
+        
+        // 🔥 強制劃分網格，把 100% 空間均分，絕對不會超出邊界
+        grid.style.gridTemplateColumns = `repeat(${optimal.cols}, minmax(0, 1fr))`;
+        grid.style.gridTemplateRows = `repeat(${optimal.rows}, minmax(0, 1fr))`;
 
         cardsData.sort(() => 0.5 - Math.random());
 
@@ -202,11 +262,13 @@
         const cards = document.querySelectorAll('.memory-card');
         const banner = document.getElementById('memory-banner');
         const text = document.getElementById('preview-text');
+        const indicator = document.getElementById('turn-indicator');
         
         cards.forEach(card => card.classList.add('flipped'));
-        banner.style.display = 'block'; // 顯示頂部橫幅
+        banner.style.display = 'block'; 
+        indicator.style.display = 'none'; // 記憶時間先隱藏回合指示器
         
-        let countdown = 10; // 給予超長的 10 秒 Loading 與記憶時間
+        let countdown = 10; 
         text.innerText = countdown;
 
         let previewTimer = setInterval(() => {
@@ -215,12 +277,14 @@
                 text.innerText = countdown;
             } else {
                 clearInterval(previewTimer);
-                banner.style.display = 'none'; // 隱藏橫幅
+                banner.style.display = 'none'; 
                 
                 cards.forEach(card => card.classList.remove('flipped'));
                 
                 setTimeout(() => {
                     lockBoard = false; 
+                    indicator.style.display = 'block'; // 遊戲開始才顯示
+                    updateTurnUI();
                     startTimer();
                 }, 800); 
             }
@@ -271,6 +335,9 @@
     function disableCards() {
         try { new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3').play(); } catch(e){}
         
+        scores[currentTeam]++;
+        updateScoreUI();
+
         setTimeout(() => {
             firstCard.classList.add('matched');
             secondCard.classList.add('matched');
@@ -279,7 +346,14 @@
             matchedPairs++;
             if (matchedPairs === totalPairs) {
                 clearInterval(gameTimer);
+                document.getElementById('turn-indicator').style.display = 'none'; // 結束時隱藏
                 setTimeout(() => {
+                    let winMsg = "";
+                    if (scores.red > scores.blue) winMsg = "<span style='color:#ff4757;'>🎉 紅隊獲勝！🎉</span>";
+                    else if (scores.blue > scores.red) winMsg = "<span style='color:#1e90ff;'>🎉 藍隊獲勝！🎉</span>";
+                    else winMsg = "<span style='color:#f1c40f;'>🤝 雙方平手！🤝</span>";
+                    
+                    document.getElementById('winner-text').innerHTML = winMsg;
                     document.getElementById('win-time').innerText = `總共花費：${document.getElementById('timer-display').innerText} 秒`;
                     document.getElementById('game-over-screen').style.display = 'flex';
                 }, 500);
@@ -294,6 +368,9 @@
             firstCard.classList.remove('flipped');
             secondCard.classList.remove('flipped');
             resetBoard();
+            
+            currentTeam = (currentTeam === 'red') ? 'blue' : 'red';
+            updateTurnUI();
         }, 1200); 
     }
 
