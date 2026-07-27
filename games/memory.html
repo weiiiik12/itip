@@ -12,7 +12,7 @@
         .back-btn { padding: 8px 15px; border-radius: 20px; border: none; background: rgba(255,255,255,0.2); color: white; cursor: pointer; font-weight: bold; transition: 0.2s;}
         .back-btn:hover { background: rgba(255,255,255,0.4); }
 
-        /* 🔥 回合指示器 */
+        /* 回合指示器 */
         #turn-indicator {
             text-align: center; padding: 10px; font-size: 24px; font-weight: 900; 
             background: rgba(0,0,0,0.3); letter-spacing: 1px; transition: all 0.3s ease; flex-shrink: 0;
@@ -20,18 +20,18 @@
         .turn-red { color: #ff4757; text-shadow: 0 0 10px rgba(255, 71, 87, 0.5); }
         .turn-blue { color: #1e90ff; text-shadow: 0 0 10px rgba(30, 144, 255, 0.5); }
 
-        /* 🔥 記憶時間專屬頂部橫幅 (跟著Flex排隊，絕不擋畫面) */
+        /* 記憶時間專屬頂部橫幅 */
         #memory-banner {
             display: none; background: #ff4757; color: white; text-align: center; 
             padding: 10px; font-size: 24px; font-weight: 900; letter-spacing: 2px;
             box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5); z-index: 9; flex-shrink: 0;
         }
 
-        /* 遊戲區域：嚴格限制高度 */
+        /* 遊戲區域 */
         #game-area { 
             flex-grow: 1; 
             padding: 12px 20px; 
-            overflow: hidden; /* 終極防線：禁止滾動 */
+            overflow: hidden; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
@@ -39,41 +39,70 @@
             box-sizing: border-box;
         }
         
-        /* 🛠️ 全新網格系統：高度與寬度都會自動撐滿父容器 */
+        /* 網格系統 */
         .memory-grid {
             display: grid;
             gap: 10px;
             width: 100%;
-            height: 100%; /* 強制聽從 game-area 的高度 */
+            height: 100%; 
             max-width: 1600px;
             box-sizing: border-box;
+            perspective: 1000px; /* 3D 視角移到最外層 */
         }
 
+        /* 🃏 3D 卡片外層容器 (負責縮放與半透明) */
         .memory-card {
             width: 100%;
             height: 100%;
-            min-height: 0; /* Flex/Grid 子元素收縮關鍵 */
-            min-width: 0;
+            min-height: 0; min-width: 0;
             cursor: pointer;
             position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transition: transform 0.3s ease, opacity 0.3s ease;
         }
 
-        .memory-card.flipped { transform: rotateY(180deg); pointer-events: none !important; }
-        .memory-card.matched { transform: rotateY(180deg) scale(0.95); opacity: 0.7; pointer-events: none !important; }
+        /* 🃏 3D 卡片內層夾心 (專心負責 180 度翻轉，徹底防呆) */
+        .memory-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d; /* Safari 救星 */
+            transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+            -webkit-transition: -webkit-transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+
+        .memory-card.flipped { pointer-events: none !important; }
+        .memory-card.flipped .memory-inner { 
+            transform: rotateY(180deg); 
+            -webkit-transform: rotateY(180deg);
+        }
+        
+        .memory-card.matched { 
+            transform: scale(0.95); 
+            opacity: 0.6; 
+            pointer-events: none !important; 
+        }
 
         .memory-front, .memory-back {
-            position: absolute; width: 100%; height: 100%;
-            backface-visibility: hidden; -webkit-backface-visibility: hidden;
+            position: absolute; 
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            backface-visibility: hidden; 
+            -webkit-backface-visibility: hidden; /* Safari 救星 */
             border-radius: 12px; display: flex; justify-content: center; align-items: center;
             font-size: clamp(16px, 2.5vw, 24px); font-weight: bold;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); padding: 5px; box-sizing: border-box; text-align: center;
         }
         
-        .memory-front { background: linear-gradient(135deg, #1cb5e0, #000851); border: 2px solid #4facfe; color: rgba(255,255,255,0.8); font-size: 40px;}
-        .memory-back { background: #1e272e; transform: rotateY(180deg); border: 2px solid #f1c40f; color: white;}
-        /* 圖片會自動縮放，不用擔心卡片變形 */
+        .memory-front { 
+            background: linear-gradient(135deg, #1cb5e0, #000851); border: 2px solid #4facfe; color: rgba(255,255,255,0.8); font-size: 40px;
+            transform: rotateY(0deg); -webkit-transform: rotateY(0deg);
+        }
+        .memory-back { 
+            background: #1e272e; border: 2px solid #f1c40f; color: white;
+            transform: rotateY(180deg); -webkit-transform: rotateY(180deg);
+        }
+        
         .memory-back img { max-width: 85%; max-height: 85%; object-fit: contain; pointer-events: none; border-radius: 8px;}
 
         /* 設定彈窗 */
@@ -128,12 +157,10 @@
         <div style="font-weight: bold;">⏳ <span id="timer-display">0</span>s</div>
     </div>
     
-    <!-- 頂部不擋畫面的記憶橫幅 -->
     <div id="memory-banner">
         👀 請記住卡片位置... 剩餘 <span id="preview-text">10</span> 秒！
     </div>
 
-    <!-- 回合指示器 -->
     <div id="turn-indicator" class="turn-red" style="display: none;">
         👉 現在輪到：紅隊 (Red Team) 👈
     </div>
@@ -172,7 +199,6 @@
         let msg = new SpeechSynthesisUtterance(word); msg.lang = 'en-US'; window.speechSynthesis.speak(msg);
     }
 
-    // 🔥 終極算法：同時給出完美的列數與行數
     function calculateOptimalGrid(totalCards) {
         let bestCols = totalCards;
         let bestRows = 1;
@@ -181,7 +207,7 @@
         for (let c = 1; c <= totalCards; c++) {
             if (totalCards % c === 0) {
                 let r = totalCards / c;
-                if (c >= r) { // 讓欄數 >= 列數 (符合寬螢幕)
+                if (c >= r) {
                     let diff = c - r;
                     if (diff < bestDiff) {
                         bestDiff = diff;
@@ -233,24 +259,25 @@
             cardsData.push({ pairId: item.english, html: getContent(item, config.typeB), type: config.typeB, fullItem: item });
         });
 
-        // 取得總卡片數量，計算最完美、絕對不會落單的行與列
         let totalCards = cardsData.length;
         let optimal = calculateOptimalGrid(totalCards);
         
-        // 🔥 強制劃分網格，把 100% 空間均分，絕對不會超出邊界
         grid.style.gridTemplateColumns = `repeat(${optimal.cols}, minmax(0, 1fr))`;
         grid.style.gridTemplateRows = `repeat(${optimal.rows}, minmax(0, 1fr))`;
 
         cardsData.sort(() => 0.5 - Math.random());
 
+        // 🌟 生成包含「雙層夾心結構」的新卡片
         cardsData.forEach(data => {
             let card = document.createElement('div');
             card.className = 'memory-card';
             card.dataset.pair = data.pairId;
             card.dataset.type = data.type;
             card.innerHTML = `
-                <div class="memory-front">?</div>
-                <div class="memory-back">${data.html}</div>
+                <div class="memory-inner">
+                    <div class="memory-front">?</div>
+                    <div class="memory-back">${data.html}</div>
+                </div>
             `;
             card.addEventListener('pointerdown', flipCard);
             grid.appendChild(card);
@@ -266,7 +293,7 @@
         
         cards.forEach(card => card.classList.add('flipped'));
         banner.style.display = 'block'; 
-        indicator.style.display = 'none'; // 記憶時間先隱藏回合指示器
+        indicator.style.display = 'none'; 
         
         let countdown = 10; 
         text.innerText = countdown;
@@ -283,7 +310,7 @@
                 
                 setTimeout(() => {
                     lockBoard = false; 
-                    indicator.style.display = 'block'; // 遊戲開始才顯示
+                    indicator.style.display = 'block'; 
                     updateTurnUI();
                     startTimer();
                 }, 800); 
@@ -346,7 +373,7 @@
             matchedPairs++;
             if (matchedPairs === totalPairs) {
                 clearInterval(gameTimer);
-                document.getElementById('turn-indicator').style.display = 'none'; // 結束時隱藏
+                document.getElementById('turn-indicator').style.display = 'none'; 
                 setTimeout(() => {
                     let winMsg = "";
                     if (scores.red > scores.blue) winMsg = "<span style='color:#ff4757;'>🎉 紅隊獲勝！🎉</span>";
