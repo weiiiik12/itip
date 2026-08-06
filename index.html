@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITIP</title>
+    <style>
+        /* ================= 核心大廳樣式設定 ================= */  
+        :root {
+            --bg-color: #f4f7f6; 
+            --text-color: #2c3e50; 
+            --primary-color: #ff3366; 
+            --card-bg: #ffffff; 
+            --border-color: #e2e8f0; 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); }
+        
+        /* 為了讓排版一致，原本在 body 的 padding 移到 main-app 裡面 */
+        #main-app { padding: 20px; display: none; /* 預設隱藏，登入後才顯示 */ }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 0 40px 0; border-bottom: 2px dashed var(--border-color); margin-bottom: 30px;
+        }
+        header h1 {
+            font-size: 28px; font-weight: 800;
+            background: linear-gradient(45deg, #ff3366, #ff9933);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        #breadcrumb { font-size: 18px; color: #7f8c8d; margin-bottom: 20px; font-weight: 500; }
+
+        .view-section { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 25px; }
+        .book-card {
+            background-color: var(--card-bg); border-radius: 12px; overflow: hidden; cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .book-card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
+        .book-cover { height: 280px; background-color: #ecf0f1; background-size: cover; background-position: center; border-bottom: 1px solid var(--border-color); }
+        .book-info { padding: 15px; }
+        .book-info h3 { margin-bottom: 5px; color: var(--text-color); }
+        .book-info p { color: #7f8c8d; font-size: 14px; font-weight: bold; }
+        .star-rating { color: #f1c40f; }
+
+        .unit-card {
+            background-color: var(--card-bg); padding: 20px; border-radius: 10px; cursor: pointer;
+            border-left: 6px solid var(--primary-color); box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s;
+        }
+        .unit-card:hover { background-color: #fff9fa; transform: translateX(8px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+
+        .vocab-preview-box { background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 1px solid var(--border-color); }
+        .vocab-chip { display: inline-block; background: #f1f2f6; color: #2f3640; padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: bold; border: 1px solid #dfe4ea; margin: 5px; }
+
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; }
+        .game-btn {
+            padding: 30px 20px; border-radius: 15px; font-size: 20px; font-weight: bold; text-align: center;
+            cursor: pointer; color: white; transition: transform 0.1s; border: none;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2); 
+        }
+        .game-btn:hover { transform: translateY(-4px); box-shadow: 0 10px 0 rgba(0,0,0,0.2); }
+        .game-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+        .bg-blue { background-color: #1368CE; } .bg-red { background-color: #E21B3C; } .bg-green { background-color: #26890C; } .bg-purple { background-color: #9b59b6; color: white;}
+
+        .back-btn { background-color: #ffffff; color: #34495e; border: 1px solid #bdc3c7; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-right: 15px; font-weight: bold; transition: 0.2s;}
+        .back-btn:hover { background-color: #ecf0f1; }
+        
+        /* ================= 登入介面專屬樣式 ================= */
+        #login-section {
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; width: 100%; position: absolute; top: 0; left: 0;
+            background-color: var(--bg-color); z-index: 1000;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        .login-box h2 {
+            font-size: 24px; font-weight: 800; margin-bottom: 25px;
+            background: linear-gradient(45deg, #ff3366, #ff9933);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .login-box input {
+            width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 16px; outline: none; transition: border 0.3s;
+        }
+        .login-box input:focus { border-color: var(--primary-color); }
+        .login-box button {
+            width: 100%; padding: 12px; background-color: var(--primary-color);
+            color: white; border: none; border-radius: 6px; font-size: 16px;
+            cursor: pointer; margin-top: 15px; font-weight: bold; transition: background 0.3s;
+        }
+        .login-box button:hover { background-color: #e62e5c; }
+        .device-info { margin-top: 20px; font-size: 13px; color: #7f8c8d; background: #f9f9f9; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;}
+        .device-info span { font-weight: bold; color: var(--primary-color); font-size: 16px; display: block; margin-top: 5px; letter-spacing: 1px;}
+    </style>
+</head>
+<body>
+
+    <!-- 登入區塊 -->
+    <div id="login-section">
+        <div class="login-box">
+            <h2>ITIP 系統登入</h2>
+            <input type="text" id="username" placeholder="請輸入帳號">
+            <input type="password" id="password" placeholder="請輸入密碼">
+            <button onclick="handleLogin()" id="login-btn">登入</button>
+            <div class="device-info">
+                本機驗證碼：<br><span id="device-key-display">讀取中...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 原本的主要應用程式區塊 (登入後才會顯示) -->
+    <div id="main-app">
+        <header>
+            <h1>📚 ITIP</h1>
+        </header>
+
+        <div id="breadcrumb"></div>
+
+        <!-- 視圖 1: 選擇教材 -->
+        <div id="view-books" class="view-section active">
+            <h2 style="margin-bottom: 20px;">選擇教材</h2>
+            <div class="grid-container" id="books-container"></div>
+        </div>
+
+        <!-- 視圖 2: 選擇單元 -->
+        <div id="view-units" class="view-section">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <button class="back-btn" onclick="showBooks()">← 返回教材</button>
+                <h2 id="unit-title"></h2>
+            </div>
+            <div class="grid-container" id="units-container"></div>
+        </div>
+
+        <!-- 視圖 3: 選擇玩法 -->
+        <div id="view-games" class="view-section">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <button class="back-btn" onclick="showUnits(currentBookId, currentBookTitle)">← 返回單元</button>
+                <h2 id="game-title"></h2>
+            </div>
+            
+            <div class="vocab-preview-box">
+                <h3 style="color: #7f8c8d; font-size: 16px; margin-bottom: 15px;">預覽本課單字：</h3>
+                <div id="vocab-preview" style="display: flex; gap: 5px; flex-wrap: wrap;"></div>
+            </div>
+
+            <h3 style="margin-bottom: 20px; color: var(--text-color);">請選擇玩法</h3>
+            <div class="game-grid">
+                <div class="game-btn bg-red" onclick="startGame('Quiz')">📝 Quiz<br><small style="font-size:13px; font-weight:normal;">選擇測驗</small></div>
+                <div class="game-btn bg-blue" onclick="startGame('Memory')">🃏 Memory<br><small style="font-size:13px; font-weight:normal;">翻牌配對</small></div>
+                <div class="game-btn bg-purple" onclick="startGame('Matching')">🔗 Matching<br><small style="font-size:13px; font-weight:normal;">連連看</small></div>
+                <div class="game-btn bg-green" onclick="startGame('Ninja')">🥷 Ninja<br><small style="font-size:13px; font-weight:normal;">字首氣球</small></div>
+                <div class="game-btn" style="background-color: #e91e63;" onclick="startGame('Train')">🚂 Train<br><small style="font-size:13px; font-weight:normal;">字母火車</small></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================= 登入與裝置驗證邏輯 =================
+        
+        // ⚠️【注意】請將下方引號內的網址，換成你剛剛發布出來的「負責登入驗證的 Apps Script 網址」
+        const LOGIN_API_URL = "https://script.google.com/macros/s/AKfycbx_NaVWZ1D3XA0MqF2pU7R2k89giIWbpxpLPIRRrSs8NAkSE5-j1ib0wsI6L-eZaPYh/exec";
+        
+        // 原本抓資料庫的 API 網址保留不動
+        const DATA_API_URL = "https://script.google.com/macros/s/AKfycbw721Pde4bqoBIhE04hX9YWK4eqRNPWjGayyUeOYIOPHOTXmojS5n9n09RWe5LaPIyy/exec";
+
+        // 產生或讀取裝置碼
+        function getOrCreateDeviceKey() {
+            let key = localStorage.getItem('ITIP_DEVICE_KEY');
+            if (!key) {
+                // 產生 10 碼大寫英數混合的驗證碼
+                key = Math.random().toString(36).substring(2, 12).toUpperCase();
+                localStorage.setItem('ITIP_DEVICE_KEY', key);
+            }
+            return key;
+        }
+
+        const myDeviceKey = getOrCreateDeviceKey();
+        document.getElementById('device-key-display').innerText = myDeviceKey;
+
+        // 執行登入
+        function handleLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const btn = document.getElementById('login-btn');
+
+            if (!user || !pass) {
+                alert("請輸入帳號密碼！");
+                return;
+            }
+
+            btn.innerText = "驗證中...";
+            btn.disabled = true;
+
+            fetch(LOGIN_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    username: user,
+                    password: pass,
+                    deviceKey: myDeviceKey
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.innerText = "登入";
+                btn.disabled = false;
+
+                if (data.success) {
+                    // 登入成功：記錄狀態並顯示主畫面
+                    sessionStorage.setItem('itip_is_logged_in', 'true');
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    fetchData(); // 登入後才開始載入教材
+                } else {
+                    alert(data.message); // 顯示密碼錯誤或裝置不符等訊息
+                }
+            })
+            .catch(err => {
+                btn.innerText = "登入";
+                btn.disabled = false;
+                alert("連線失敗，請確認你的 Apps Script 網址是否正確或網路狀態。");
+            });
+        }
+
+
+        // ================= 原本的介面與資料邏輯 =================
+        let mockData = { books: [], units: [], vocab: [] };
+        let currentBookId = "", currentBookTitle = "", currentUnitId = "", currentUnitTitle = "";
+
+        function renderBooks() {
+            const container = document.getElementById('books-container');
+            container.innerHTML = ""; 
+            mockData.books.forEach(book => {
+                const bgImage = book.cover_image ? `url('${book.cover_image}')` : 'none';
+                container.innerHTML += `
+                    <div class="book-card" onclick="showUnits('${book.book_ID}', '${book.title}')">
+                        <div class="book-cover" style="background-image: ${bgImage}"></div>
+                        <div class="book-info"><h3>${book.title}</h3><p><span class="star-rating">★★★★★</span></p></div>
+                    </div>`;
+            });
+            updateBreadcrumb();
+        }
+
+        function showUnits(bookId, bookTitle) {
+            currentBookId = bookId; currentBookTitle = bookTitle;
+            switchView('view-units');
+            document.getElementById('unit-title').innerText = `${bookTitle} - 單元列表`;
+            updateBreadcrumb(`首頁 > ${bookTitle}`);
+            
+            const container = document.getElementById('units-container');
+            container.innerHTML = "";
+            const bookUnits = mockData.units.filter(u => String(u.book_ID).trim() === String(bookId).trim());
+
+            if(bookUnits.length === 0) { container.innerHTML = "<p style='color:#7f8c8d;'>此教材尚未建立單元。</p>"; return; }
+            bookUnits.forEach(unit => {
+                container.innerHTML += `
+                    <div class="unit-card" onclick="showGames('${unit.unit_ID}', '${unit.unit_name}')">
+                        <h3 style="margin-bottom:5px;">${unit.unit_name}</h3>
+                        <p style="color:#7f8c8d; font-size: 14px;">${unit.description || ''}</p>
+                    </div>`;
+            });
+        }
+
+        function showGames(unitId, unitTitle) {
+            currentUnitId = unitId; currentUnitTitle = unitTitle;
+            switchView('view-games');
+            document.getElementById('game-title').innerText = `${currentBookTitle} - ${unitTitle}`;
+            updateBreadcrumb(`首頁 > ${currentBookTitle} > ${unitTitle}`);
+
+            const vocabPreview = document.getElementById('vocab-preview');
+            vocabPreview.innerHTML = "";
+            const unitVocab = mockData.vocab.filter(v => String(v.unit_ID).trim() === String(unitId).trim());
+            
+            if(unitVocab.length > 0) {
+                unitVocab.forEach(v => { vocabPreview.innerHTML += `<span class="vocab-chip">${v.english} (${v.chinese})</span>`; });
+            } else { vocabPreview.innerHTML = "<span style='color:#7f8c8d;'>沒有找到單字資料</span>"; }
+        }
+
+        function showBooks() {
+            currentBookId = ""; currentBookTitle = "";
+            switchView('view-books'); updateBreadcrumb();
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        function updateBreadcrumb(text = "首頁") { document.getElementById('breadcrumb').innerText = text; }
+
+        function startGame(gameMode) {
+            const unitVocab = mockData.vocab.filter(v => String(v.unit_ID).trim() === String(currentUnitId).trim());
+            
+            if(unitVocab.length === 0) {
+                alert("本單元尚未建立單字，無法啟動遊戲！");
+                return;
+            }
+
+            sessionStorage.setItem('itip_current_vocab', JSON.stringify(unitVocab));
+            sessionStorage.setItem('itip_current_title', `${currentBookTitle} - ${currentUnitTitle}`);
+            sessionStorage.setItem('itip_book_id', currentBookId);
+            sessionStorage.setItem('itip_book_title', currentBookTitle);
+            sessionStorage.setItem('itip_unit_id', currentUnitId);
+            sessionStorage.setItem('itip_unit_title', currentUnitTitle);
+
+            if (gameMode === 'Quiz') { window.location.href = 'games/quiz.html'; } 
+            else if (gameMode === 'Memory') { window.location.href = 'games/memory.html'; } 
+            else if (gameMode === 'Matching') { window.location.href = 'games/matching.html'; } 
+            else if (gameMode === 'Ninja') { window.location.href = 'games/ninja.html'; } 
+            else if (gameMode === 'Train') { window.location.href = 'games/train.html'; } 
+            else { alert(`尚未開放：${gameMode}`); }
+        }
+
+        async function fetchData() {
+            const container = document.getElementById('books-container');
+            container.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #7f8c8d;'>雲端教材載入中...</p>";
+            try {
+                const response = await fetch(DATA_API_URL);
+                const data = await response.json();
+                mockData.books = data.books || [];
+                mockData.units = data.units || [];
+                mockData.vocab = data.vocab || [];
+                
+                renderBooks(); 
+
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('return') === 'games') {
+                    currentBookId = sessionStorage.getItem('itip_book_id');
+                    currentBookTitle = sessionStorage.getItem('itip_book_title');
+                    const savedUnitId = sessionStorage.getItem('itip_unit_id');
+                    const savedUnitTitle = sessionStorage.getItem('itip_unit_title');
+                    
+                    if (savedUnitId && savedUnitTitle) {
+                        showGames(savedUnitId, savedUnitTitle);
+                    }
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
+            } catch (error) {
+                container.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #e74c3c;'>資料載入失敗，請檢查網頁或網路狀態。</p>";
+            }
+        }
+
+        // ================= 進入網頁第一件事：檢查登入狀態 =================
+        if (sessionStorage.getItem('itip_is_logged_in') === 'true') {
+            // 如果這個視窗已經登入過，直接隱藏登入框並抓資料（避免返回頁面時還要重登）
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            fetchData();
+        }
+    </script>
+</body>
+</html>
