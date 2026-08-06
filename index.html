@@ -186,6 +186,14 @@
         const myDeviceKey = getOrCreateDeviceKey();
         document.getElementById('device-key-display').innerText = myDeviceKey;
 
+        // 執行登出
+        function handleLogout() {
+            sessionStorage.removeItem('itip_is_logged_in'); // 清除登入狀態
+            localStorage.removeItem('itip_login_date');     // 清除登入日期
+            alert("已成功登出！");
+            location.reload(); // 重新整理網頁，就會自動退回登入畫面
+        }
+
         // 執行登入
         function handleLogin() {
             const user = document.getElementById('username').value;
@@ -215,8 +223,11 @@
                 btn.disabled = false;
 
                 if (data.success) {
-                    // 登入成功：記錄狀態並顯示主畫面
+                    // 登入成功：記錄狀態與「今天的日期」
+                    const today = new Date().toLocaleDateString();
+                    localStorage.setItem('itip_login_date', today); // 紀錄登入日期
                     sessionStorage.setItem('itip_is_logged_in', 'true');
+                    
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('main-app').style.display = 'block';
                     fetchData(); // 登入後才開始載入教材
@@ -350,12 +361,18 @@
             }
         }
 
-        // ================= 進入網頁第一件事：檢查登入狀態 =================
-        if (sessionStorage.getItem('itip_is_logged_in') === 'true') {
-            // 如果這個視窗已經登入過，直接隱藏登入框並抓資料（避免返回頁面時還要重登）
+        // ================= 進入網頁第一件事：檢查登入狀態與日期 =================
+        const today = new Date().toLocaleDateString();
+        const lastLoginDate = localStorage.getItem('itip_login_date');
+
+        // 條件：必須是登入過的狀態，而且「上次登入的日期等於今天」
+        if (sessionStorage.getItem('itip_is_logged_in') === 'true' && lastLoginDate === today) {
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             fetchData();
+        } else {
+            // 如果跨日了（日期不同）或未登入，就清除狀態，留在登入畫面
+            sessionStorage.removeItem('itip_is_logged_in');
         }
     </script>
 </body>
